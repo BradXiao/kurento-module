@@ -1,0 +1,39 @@
+Source: obj-det
+Maintainer: Maintainer Name <maintainer.name@example.com>
+Priority: optional
+Build-Depends:
+ cmake,
+ debhelper-compat (= 13),
+ kurento-cmake-utils,
+ kurento-module-core-dev,
+ kurento-module-elements-dev,
+ kurento-module-filters-dev,
+ libgstreamer1.0-dev,
+ libopencv-dev,
+ pkg-config,
+Standards-Version: 4.5.1
+Homepage: https://www.example.com/
+#Vcs-Browser: https://git.example.com/obj-det
+#Vcs-Git: https://git.example.com/obj-det.git
+Rules-Requires-Root: no
+
+Package: obj-det
+Architecture: any
+Section: libs
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+Description: <Up to 60 chars single line summary>
+ <Long description over several lines, indented with space>.
+
+Package: obj-det-dev
+Architecture: any
+Section: libdevel
+Depends:
+ ${misc:Depends},
+ obj-det (= ${binary:Version}),
+ kurento-module-core-dev,
+ kurento-module-elements-dev,
+ kurento-module-filters-dev,
+Description: <Up to 60 chars single line summary> (development files)
+ <Long description over several lines, indented with space>.

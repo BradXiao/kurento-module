@@ -1,0 +1,5 @@
+obj-det (0.0.1~rc1) testing; urgency=medium
+
+  * Initial release.
+
+ -- Maintainer Name <maintainer.name@example.com>  Sat, 30 Dec 2023 13:11:52 +0800
