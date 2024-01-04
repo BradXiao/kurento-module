@@ -16,8 +16,7 @@ class ObjDetOpenCVImpl : public virtual OpenCVProcess {
 
 public:
   ObjDetOpenCVImpl();
-
-  virtual ~ObjDetOpenCVImpl() = default;
+  ~ObjDetOpenCVImpl();
 
   virtual void process(cv::Mat &mat);
   virtual std::shared_ptr<MediaObject> getSharedFromThis();

@@ -31,8 +31,46 @@ ObjDetOpenCVImpl::ObjDetOpenCVImpl() {
  * here. Any changes in mat, will be sent through the Media Pipeline.
  */
 void ObjDetOpenCVImpl::process(cv::Mat &mat) {
-  // FIXME: Implement this
-  throw KurentoException(NOT_IMPLEMENTED, "ObjDetOpenCVImpl::process: Not implemented");
+
+  if (this->isInferring == true) {
+    std::vector<utils::Obj> objs;
+    // infer
+    this->model->infer(mat, objs);
+
+    std::vector<utils::Obj> objsTmp;
+    // confidence
+    for (utils::Obj &obj : objs) {
+      if (obj.confi >= this->confiThresh) {
+        auto it = std::lower_bound(objsTmp.begin(), objsTmp.end(), obj);
+        objsTmp.insert(it, obj);
+      }
+    }
+    objs = objsTmp;
+    // box limit
+    if (static_cast<int>(objs.size()) > this->boxLimit) {
+      std::vector<utils::Obj> objsTmp(objs.begin(), objs.begin() + std::min(objs.size(), size_t(this->boxLimit)));
+      objs = objsTmp;
+    }
+
+    // draw box
+    if (this->isDraw == true) {
+      utils::drawObjs(mat, mat, objs, false, 0.4);
+    }
+
+    Json::Value boxes(Json::arrayValue);
+    for (utils::Obj &obj : objs) {
+      Json::Value box;
+      box["x1"] = obj.p1.x;
+      box["y1"] = obj.p1.y;
+      box["x2"] = obj.p2.x;
+      box["y2"] = obj.p2.y;
+      box["name"] = obj.name;
+      box["confi"] = obj.confi;
+      boxes.append(box);
+    }
+    boxDetected event(this->getSharedFromThis(), boxDetected::getName(), utils::jsonToString(boxes));
+    signalboxDetected(event);
+  }
 }
 
 bool ObjDetOpenCVImpl::setConfidence(float confidence) {
@@ -91,6 +129,12 @@ void ObjDetOpenCVImpl::sendSetParamSetResult(const std::string param_name, const
   paramSetState event(this->getSharedFromThis(), paramSetState::getName(), utils::jsonToString(result));
   signalparamSetState(event);
 };
+
+ObjDetOpenCVImpl::~ObjDetOpenCVImpl() {
+  if (this->model != nullptr) {
+    objdet::modelPool.returnModel(this->model);
+  }
+}
 
 std::shared_ptr<MediaObject> ObjDetOpenCVImpl::getSharedFromThis() { return nullptr; };
 
