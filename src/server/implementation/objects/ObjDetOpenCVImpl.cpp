@@ -10,7 +10,20 @@ namespace objdet {
 
 static ModelPool modelPool;
 
-ObjDetOpenCVImpl::ObjDetOpenCVImpl() { this->model = objdet::modelPool.getModel(); }
+ObjDetOpenCVImpl::ObjDetOpenCVImpl() {
+  this->model = objdet::modelPool.getModel();
+  Json::Value modelState;
+  if (this->model == nullptr) {
+    modelState["state"] = "000";
+    modelState["msg"] = "";
+  } else {
+    modelState["state"] = "E001";
+    modelState["msg"] = "Model not avaialbe";
+  }
+
+  modelInitState event(this->getSharedFromThis(), modelInitState::getName(), utils::jsonToString(modelState));
+  signalmodelInitState(event);
+}
 
 /*
  * This function will be called with each new frame. mat variable
@@ -25,42 +38,61 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
 bool ObjDetOpenCVImpl::setConfidence(float confidence) {
 
   if (confidence <= 0 || confidence > 1) {
+    this->sendSetParamSetResult("confidence", "E001");
     return false;
   }
   this->confiThresh = std::min(std::max(confidence, 0.01f), 0.99f);
+  this->sendSetParamSetResult("confidence", "000");
   return true;
 }
 
 bool ObjDetOpenCVImpl::setBoxLimit(int boxLimit) {
   if (boxLimit <= 0 || boxLimit > 100) {
+    this->sendSetParamSetResult("boxLimit", "E001");
     return false;
   }
   this->boxLimit = std::min(std::max(boxLimit, 1), 100);
+  this->sendSetParamSetResult("boxLimit", "000");
   return true;
 }
 
 bool ObjDetOpenCVImpl::setIsDraw(bool isDraw) {
   this->isDraw = isDraw;
+  this->sendSetParamSetResult("isDraw", "000");
   return true;
 }
 
 bool ObjDetOpenCVImpl::startInferring() {
   this->isInferring = true;
+  this->sendSetParamSetResult("startinferring", "000");
   return true;
 }
 bool ObjDetOpenCVImpl::stopInferring() {
   this->isInferring = false;
+  this->sendSetParamSetResult("stopinferring", "000");
   return true;
 }
 bool ObjDetOpenCVImpl::destroy() {
   if (this->model != nullptr) {
     objdet::modelPool.returnModel(this->model);
     this->model = nullptr;
+    this->sendSetParamSetResult("destroy", "000");
     return true;
   } else {
+    this->sendSetParamSetResult("destroy", "W001");
     return false;
   }
 }
+
+void ObjDetOpenCVImpl::sendSetParamSetResult(const std::string param_name, const std::string state) {
+  Json::Value result;
+  result["state"] = state;
+  result["param_name"] = param_name;
+  paramSetState event(this->getSharedFromThis(), paramSetState::getName(), utils::jsonToString(result));
+  signalparamSetState(event);
+};
+
+std::shared_ptr<MediaObject> ObjDetOpenCVImpl::getSharedFromThis() { return nullptr; };
 
 } // namespace objdet
 } // namespace module

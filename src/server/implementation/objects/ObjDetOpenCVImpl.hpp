@@ -18,8 +18,13 @@ public:
   ObjDetOpenCVImpl();
 
   virtual ~ObjDetOpenCVImpl() = default;
+  virtual std::shared_ptr<MediaObject> getSharedFromThis();
 
   virtual void process(cv::Mat &mat);
+
+  sigc::signal<void, boxDetected> signalboxDetected;
+  sigc::signal<void, modelInitState> signalmodelInitState;
+  sigc::signal<void, paramSetState> signalparamSetState;
 
   bool setConfidence(float confidence);
   bool setBoxLimit(int boxLimit);
@@ -34,6 +39,7 @@ private:
   bool isDraw = false;
   bool isInferring = false;
   Yolov7trt *model;
+  void sendSetParamSetResult(const std::string param_name, const std::string state);
 };
 
 } // namespace objdet

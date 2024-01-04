@@ -64,6 +64,45 @@
                     "doc": "Explicitly destroy the model (return to model pool)",
                     "params": []
                 }
+            ],
+            "events": ["boxDetected", "modelInitState", "paramSetState"]
+        }
+    ],
+    "events": [
+        {
+            "name": "boxDetected",
+            "doc": "return detected objects",
+            "extends": "Media",
+            "properties": [
+                {
+                    "name": "objectJSON",
+                    "doc": "JSON format, {x1:0,y1:0,x2:0,y2:0,name:,confi:0}",
+                    "type": "String"
+                }
+            ]
+        },
+        {
+            "name": "modelInitState",
+            "doc": "return the model init state",
+            "extends": "Media",
+            "properties": [
+                {
+                    "name": "stateJSON",
+                    "doc": "JSON format, {state:,msg:}",
+                    "type": "String"
+                }
+            ]
+        },
+        {
+            "name": "paramSetState",
+            "doc": "return param set state",
+            "extends": "Media",
+            "properties": [
+                {
+                    "name": "stateJSON",
+                    "doc": "JSON format, {state:,param_name:}",
+                    "type": "String"
+                }
             ]
         }
     ]

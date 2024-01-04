@@ -42,6 +42,7 @@ public:
                       Json::Value &response);
 
   virtual void Serialize(JsonSerializer &serializer);
+  std::shared_ptr<MediaObject> getSharedFromThis() override { return shared_from_this(); };
 
   void setConfidence(float confidence);
   void setBoxLimit(int boxLimit);
