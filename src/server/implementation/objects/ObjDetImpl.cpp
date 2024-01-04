@@ -17,9 +17,7 @@ namespace module {
 namespace objdet {
 
 ObjDetImpl::ObjDetImpl(const boost::property_tree::ptree &config, std::shared_ptr<MediaPipeline> mediaPipeline)
-    : OpenCVFilterImpl(config, std::dynamic_pointer_cast<MediaPipelineImpl>(mediaPipeline))
-
-{}
+    : OpenCVFilterImpl(config, std::dynamic_pointer_cast<MediaPipelineImpl>(mediaPipeline)) {}
 
 MediaObjectImpl *ObjDetImplFactory::createObject(const boost::property_tree::ptree &config,
                                                  std::shared_ptr<MediaPipeline> mediaPipeline) const {

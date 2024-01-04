@@ -18,9 +18,9 @@ public:
   ObjDetOpenCVImpl();
 
   virtual ~ObjDetOpenCVImpl() = default;
-  virtual std::shared_ptr<MediaObject> getSharedFromThis();
 
   virtual void process(cv::Mat &mat);
+  virtual std::shared_ptr<MediaObject> getSharedFromThis();
 
   sigc::signal<void, boxDetected> signalboxDetected;
   sigc::signal<void, modelInitState> signalmodelInitState;
