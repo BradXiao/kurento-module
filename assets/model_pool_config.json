@@ -1,0 +1,5 @@
+{
+    "max_model_limit": 5,
+    "model_abs_path": "assets/yolov7-nms.trt",
+    "device_id": 0
+}
