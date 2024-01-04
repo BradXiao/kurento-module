@@ -8,9 +8,8 @@
 #include <gst/gst.h>
 #include <jsonrpc/JsonSerializer.hpp>
 
-#define PLUGIN_NAME "KurentoObjDetImpl"
-#define GST_CAT_DEFAULT kurento_obj_det_debug
-GST_DEBUG_CATEGORY_STATIC(GST_CAT_DEFAULT);
+GST_DEBUG_CATEGORY_STATIC(kurento_obj_det);
+#define GST_CAT_DEFAULT kurento_obj_det
 
 namespace kurento {
 namespace module {
@@ -27,15 +26,33 @@ MediaObjectImpl *ObjDetImplFactory::createObject(const boost::property_tree::ptr
 ObjDetImpl::StaticConstructor ObjDetImpl::staticConstructor;
 
 ObjDetImpl::StaticConstructor::StaticConstructor() {
-  GST_DEBUG_CATEGORY_INIT(GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME " debug category");
+  GST_DEBUG_CATEGORY_INIT(kurento_obj_det, "KurentoObjDetImpl", 0, "KurentoObjDetImpl debug category");
 }
 
-void ObjDetImpl::setConfidence(float confidence) { ObjDetOpenCVImpl::setConfidence(confidence); };
-void ObjDetImpl::setBoxLimit(int boxLimit) { ObjDetOpenCVImpl::setBoxLimit(boxLimit); };
-void ObjDetImpl::setIsDraw(bool isDraw) { ObjDetOpenCVImpl::setIsDraw(isDraw); };
-void ObjDetImpl::startInferring() { ObjDetOpenCVImpl::startInferring(); };
-void ObjDetImpl::stopInferring() { ObjDetOpenCVImpl::stopInferring(); };
-void ObjDetImpl::destroy() { ObjDetOpenCVImpl::destroy(); };
+void ObjDetImpl::setConfidence(float confidence) {
+  GST_INFO("set confidence %f", confidence);
+  ObjDetOpenCVImpl::setConfidence(confidence);
+};
+void ObjDetImpl::setBoxLimit(int boxLimit) {
+  GST_INFO("set box limit %d", boxLimit);
+  ObjDetOpenCVImpl::setBoxLimit(boxLimit);
+};
+void ObjDetImpl::setIsDraw(bool isDraw) {
+  GST_INFO("set is draw %s", isDraw ? "true" : "false");
+  ObjDetOpenCVImpl::setIsDraw(isDraw);
+};
+void ObjDetImpl::startInferring() {
+  GST_INFO("start inferring");
+  ObjDetOpenCVImpl::startInferring();
+};
+void ObjDetImpl::stopInferring() {
+  GST_INFO("stop inferring");
+  ObjDetOpenCVImpl::stopInferring();
+};
+void ObjDetImpl::destroy() {
+  GST_INFO("destroy");
+  ObjDetOpenCVImpl::destroy();
+};
 
 } // namespace objdet
 } // namespace module

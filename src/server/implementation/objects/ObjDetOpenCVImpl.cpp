@@ -3,6 +3,10 @@
 
 #include "ObjDetOpenCVImpl.hpp"
 #include <KurentoException.hpp>
+#include <gst/gst.h>
+
+GST_DEBUG_CATEGORY_STATIC(kurento_obj_det_core);
+#define GST_CAT_DEFAULT kurento_obj_det_core
 
 namespace kurento {
 namespace module {
@@ -11,12 +15,21 @@ namespace objdet {
 static ModelPool modelPool;
 
 ObjDetOpenCVImpl::ObjDetOpenCVImpl() {
+
   this->model = objdet::modelPool.getModel();
+  std::stringstream ss;
+  ss << this->model;
+  std::string address = ss.str();
+  address = address.length() > 5 ? address.substr(address.length() - 5) : address;
+  GST_DEBUG_CATEGORY_INIT(kurento_obj_det_core, (std::string("ObjDetCore-") + address).c_str(), GST_DEBUG_FG_CYAN, "ObjDetCore");
+
   Json::Value modelState;
-  if (this->model == nullptr) {
+  if (this->model != nullptr) {
+    GST_INFO("model is ready");
     modelState["state"] = "000";
     modelState["msg"] = "";
   } else {
+    GST_WARNING("no model is available");
     modelState["state"] = "E001";
     modelState["msg"] = "Model not avaialbe";
   }
@@ -31,12 +44,14 @@ ObjDetOpenCVImpl::ObjDetOpenCVImpl() {
  * here. Any changes in mat, will be sent through the Media Pipeline.
  */
 void ObjDetOpenCVImpl::process(cv::Mat &mat) {
-
+  GST_DEBUG("process");
   if (this->isInferring == true) {
+    GST_DEBUG("do inferring");
     std::vector<utils::Obj> objs;
     // infer
+    GST_DEBUG("feed mat into model");
     this->model->infer(mat, objs);
-
+    GST_DEBUG("inferred %d objs", static_cast<int>(objs.size()));
     std::vector<utils::Obj> objsTmp;
     // confidence
     for (utils::Obj &obj : objs) {
@@ -46,15 +61,18 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
       }
     }
     objs = objsTmp;
+    GST_DEBUG("%d objs are above confidence %f", static_cast<int>(objs.size()), this->confiThresh);
     // box limit
     if (static_cast<int>(objs.size()) > this->boxLimit) {
       std::vector<utils::Obj> objsTmp(objs.begin(), objs.begin() + std::min(objs.size(), size_t(this->boxLimit)));
       objs = objsTmp;
+      GST_DEBUG("%d objs after truncating additional objs, max= %d", static_cast<int>(objs.size()), this->boxLimit);
     }
 
     // draw box
-    if (this->isDraw == true) {
+    if (this->isDraw == true && objs.size() > 0) {
       utils::drawObjs(mat, mat, objs, false, 0.4);
+      GST_DEBUG("draw objs");
     }
 
     Json::Value boxes(Json::arrayValue);
@@ -68,14 +86,18 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
       box["confi"] = obj.confi;
       boxes.append(box);
     }
+    GST_DEBUG("signalboxDetected");
     boxDetected event(this->getSharedFromThis(), boxDetected::getName(), utils::jsonToString(boxes));
     signalboxDetected(event);
+  } else {
+    GST_DEBUG("no inferring");
   }
 }
 
 bool ObjDetOpenCVImpl::setConfidence(float confidence) {
-
+  GST_INFO("set confidence to %f", confidence);
   if (confidence <= 0 || confidence > 1) {
+    GST_WARNING("confidence set error");
     this->sendSetParamSetResult("confidence", "E001");
     return false;
   }
@@ -85,7 +107,9 @@ bool ObjDetOpenCVImpl::setConfidence(float confidence) {
 }
 
 bool ObjDetOpenCVImpl::setBoxLimit(int boxLimit) {
+  GST_INFO("set boxLimit to %d", boxLimit);
   if (boxLimit <= 0 || boxLimit > 100) {
+    GST_WARNING("boxLimit set error");
     this->sendSetParamSetResult("boxLimit", "E001");
     return false;
   }
@@ -95,17 +119,20 @@ bool ObjDetOpenCVImpl::setBoxLimit(int boxLimit) {
 }
 
 bool ObjDetOpenCVImpl::setIsDraw(bool isDraw) {
+  GST_INFO("set isDraw to %s", isDraw ? "true" : "false");
   this->isDraw = isDraw;
   this->sendSetParamSetResult("isDraw", "000");
   return true;
 }
 
 bool ObjDetOpenCVImpl::startInferring() {
+  GST_INFO("set isInferring to true");
   this->isInferring = true;
   this->sendSetParamSetResult("startinferring", "000");
   return true;
 }
 bool ObjDetOpenCVImpl::stopInferring() {
+  GST_INFO("set isInferring to false");
   this->isInferring = false;
   this->sendSetParamSetResult("stopinferring", "000");
   return true;
@@ -113,10 +140,12 @@ bool ObjDetOpenCVImpl::stopInferring() {
 bool ObjDetOpenCVImpl::destroy() {
   if (this->model != nullptr) {
     objdet::modelPool.returnModel(this->model);
+    GST_INFO("release a model");
     this->model = nullptr;
     this->sendSetParamSetResult("destroy", "000");
     return true;
   } else {
+    GST_WARNING("no model needs to be released");
     this->sendSetParamSetResult("destroy", "W001");
     return false;
   }
@@ -127,12 +156,14 @@ void ObjDetOpenCVImpl::sendSetParamSetResult(const std::string param_name, const
   result["state"] = state;
   result["param_name"] = param_name;
   paramSetState event(this->getSharedFromThis(), paramSetState::getName(), utils::jsonToString(result));
+  GST_DEBUG("signalparamSetState");
   signalparamSetState(event);
 };
 
 ObjDetOpenCVImpl::~ObjDetOpenCVImpl() {
   if (this->model != nullptr) {
     objdet::modelPool.returnModel(this->model);
+    GST_INFO("release a model");
   }
 }
 

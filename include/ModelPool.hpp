@@ -11,6 +11,7 @@
 namespace fs = std::filesystem;
 
 GST_DEBUG_CATEGORY_STATIC(obj_det_model_pool);
+#define GST_CAT_DEFAULT obj_det_model_pool
 
 namespace kurento {
 namespace module {
@@ -19,11 +20,12 @@ class ModelPool {
 public:
   ModelPool() {
 
-    GST_DEBUG_CATEGORY_INIT(obj_det_model_pool, "ObjDetModelPool", 0, "ObjDetModelPool");
+    GST_DEBUG_CATEGORY_INIT(obj_det_model_pool, "ObjDetModelPool", GST_DEBUG_BG_YELLOW, "ObjDetModelPool");
     std::lock_guard<std::recursive_mutex> lockNow(lock);
     GST_DEBUG("init");
 
     // read config
+    GST_INFO("check config file");
     const char *path = std::getenv("OBJDET_CONFIG");
     if (path == nullptr) {
       GST_ERROR("OBJDET_CONFIG is not specified");
@@ -41,6 +43,7 @@ public:
       throw std::runtime_error(std::string("object detection config file cannot load: ") + path);
     }
 
+    GST_INFO("read config file");
     Json::Value config;
     Json::Reader reader;
     if (reader.parse(fileStream, config) == false) {
@@ -48,13 +51,14 @@ public:
       throw std::runtime_error(std::string("object detection config file JSON format error: ") + path);
     }
 
-    GST_DEBUG("finish loading config file");
+    GST_INFO("finish loading config file");
     GST_INFO("%s", utils::jsonToString(config).c_str());
 
     this->maxModelLimit = std::max(config["max_model_limit"].asInt(), 1);
 
     std::string modelPath = config["model_abs_path"].asString();
 
+    GST_INFO("check model file");
     if (fs::exists(modelPath) == false) {
       GST_ERROR("object detection model not found: %s", modelPath.c_str());
       throw std::runtime_error(std::string("object detection model not found: ") + modelPath);
@@ -65,11 +69,11 @@ public:
     // init models
     GST_INFO("Start init %d models", this->maxModelLimit);
     for (int i = 0; i < this->maxModelLimit; i++) {
-      GST_DEBUG("Init %d/%d model", i + 1, this->maxModelLimit);
+      GST_INFO("Init %d/%d model", i + 1, this->maxModelLimit);
       Yolov7trt *md;
       try {
-        md = new Yolov7trt(modelPath, deviceID);
-        GST_DEBUG("Finish init %d/%d model", i + 1, this->maxModelLimit);
+        md = new Yolov7trt(modelPath, deviceID, std::to_string(i));
+        GST_INFO("Finish init %d/%d model", i + 1, this->maxModelLimit);
       } catch (const std::exception &e) {
         GST_ERROR("Error init %d/%d model: %s", i + 1, this->maxModelLimit, e.what());
         continue;
@@ -78,7 +82,7 @@ public:
       this->models.push_back(md);
       uintptr_t modelAddress = reinterpret_cast<uintptr_t>(md);
       this->isUsed[modelAddress] = false;
-      GST_DEBUG("Added %d/%d model", i + 1, this->maxModelLimit);
+      GST_INFO("Added %d/%d model", i + 1, this->maxModelLimit);
     }
   };
 
@@ -98,18 +102,22 @@ public:
 
     for (auto const &[address, used] : this->isUsed) {
       if (used == false) {
+        GST_DEBUG("is available=true");
         return true;
       }
     }
+    GST_DEBUG("is available=false");
     return false;
   };
 
   Yolov7trt *getModel() {
     std::lock_guard<std::recursive_mutex> lockNow(lock);
+    GST_INFO("get a free model");
     for (Yolov7trt *model : this->models) {
       uintptr_t address = reinterpret_cast<uintptr_t>(model);
       if (this->isUsed[address] == false) {
         this->isUsed[address] = true;
+        GST_INFO("get a model successfully");
         return this->models[address];
       }
     }
@@ -119,12 +127,14 @@ public:
   }
 
   void returnModel(Yolov7trt *model) {
+    GST_INFO("return a model");
     std::lock_guard<std::recursive_mutex> lockNow(lock);
     uintptr_t address = reinterpret_cast<uintptr_t>(model);
     this->isUsed[address] = false;
   }
 
   ~ModelPool() {
+    GST_INFO("destroy models");
     for (Yolov7trt *m : models) {
       delete m;
     }

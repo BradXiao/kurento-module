@@ -9,7 +9,7 @@ class Logger;
 class Yolov7trt {
 
 public:
-  Yolov7trt(const std::string &modelPath, const int &device);
+  Yolov7trt(const std::string &modelPath, const int &device, std::string name);
   ~Yolov7trt();
   void infer(const cv::Mat &rgbImg, std::vector<utils::Obj> &output);
 
