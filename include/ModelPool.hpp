@@ -118,7 +118,7 @@ public:
       if (this->isUsed[address] == false) {
         this->isUsed[address] = true;
         GST_INFO("get a model successfully");
-        return this->models[address];
+        return model;
       }
     }
 
