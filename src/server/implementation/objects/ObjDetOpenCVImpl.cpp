@@ -71,8 +71,8 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
 
     // draw box
     if (this->isDraw == true && objs.size() > 0) {
-      utils::drawObjs(mat, mat, objs, false, 0.4);
       GST_DEBUG("draw objs");
+      utils::drawObjsFixedColor(mat, mat, objs, false, 0.4, utils::CLASSCOLORS);
     }
 
     Json::Value boxes(Json::arrayValue);
