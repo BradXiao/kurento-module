@@ -15,7 +15,7 @@
                     }
                 ]
             },
-            "method": [
+            "methods": [
                 {
                     "name": "setConfidence",
                     "doc": "Set the confidence threshold for objects",
@@ -45,7 +45,7 @@
                         {
                             "name": "isDraw",
                             "doc": "true/false",
-                            "type": "bool"
+                            "type": "boolean"
                         }
                     ]
                 },
