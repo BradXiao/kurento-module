@@ -1,5 +1,5 @@
 {
-  "name": "objdet",
-  "version": "0.0.1-dev",
-  "kurentoVersion": "^7.0.0"
+    "name": "objdet",
+    "version": "1.0.0",
+    "kurentoVersion": "^7.0.0"
 }
