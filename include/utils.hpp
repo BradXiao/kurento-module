@@ -192,7 +192,10 @@ static void postprocess(const std::vector<void *> &outputBuffer, const Yolov7Inp
  * @param frontScale
  */
 static void drawObjs(const cv::Mat &srcRGBImg, cv::Mat &desRGBImg, const std::vector<Obj> &objs, bool swapBR, float frontScale) {
-  desRGBImg = srcRGBImg.clone();
+  if (&srcRGBImg != &desRGBImg) {
+    desRGBImg = srcRGBImg.clone();
+  }
+
   if (swapBR == true) {
     cv::cvtColor(desRGBImg, desRGBImg, cv::COLOR_RGB2BGR);
   }
