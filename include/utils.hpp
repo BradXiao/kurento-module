@@ -107,8 +107,11 @@ static void getBindingInfo(BindingInfo &info, const nvinfer1::ICudaEngine *engin
  * @param padColor
  */
 static void preprocess(const cv::Mat &rgbImg, Yolov7Input &input, int wh, int padColor) {
-  if (rgbImg.channels() != 3) {
-    throw std::runtime_error("channel must be 3");
+
+  if (rgbImg.channels() == 4) {
+    cv::cvtColor(rgbImg, input.mat, cv::COLOR_RGBA2RGB);
+  } else {
+    input.mat = rgbImg.clone();
   }
   cv::Size shape = rgbImg.size();
   float targetWidth = wh;
@@ -126,9 +129,7 @@ static void preprocess(const cv::Mat &rgbImg, Yolov7Input &input, int wh, int pa
   float dh = (wh - newUnpadHeight) / 2.;
 
   if (shape.width != newUnpadWidth || shape.height != newUnpadHeight) {
-    cv::resize(rgbImg, input.mat, cv::Size(newUnpadWidth, newUnpadHeight));
-  } else {
-    input.mat = rgbImg.clone();
+    cv::resize(input.mat, input.mat, cv::Size(newUnpadWidth, newUnpadHeight));
   }
   int top = std::lround(dh - 0.1);
   int bottom = std::lround(dh + 0.1);
