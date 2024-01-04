@@ -43,6 +43,13 @@ public:
 
   virtual void Serialize(JsonSerializer &serializer);
 
+  void setConfidence(float confidence);
+  void setBoxLimit(int boxLimit);
+  void setIsDraw(bool isDraw);
+  void startInferring();
+  void stopInferring();
+  void destroy();
+
 private:
   class StaticConstructor {
   public:

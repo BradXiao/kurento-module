@@ -1,20 +1,70 @@
 {
-  "remoteClasses": [
-    {
-      "name": "ObjDet",
-      "extends": "OpenCVFilter",
-      "doc": "ObjDet interface. Documentation about the module.",
-      "constructor": {
-        "doc": "Create an element.",
-        "params": [
-          {
-            "name": "mediaPipeline",
-            "doc": "the parent :rom:cls:`MediaPipeline`.",
-            "type": "MediaPipeline",
-            "final": true
-          }
-        ]
-      }
-    }
-  ]
+    "remoteClasses": [
+        {
+            "name": "ObjDet",
+            "extends": "OpenCVFilter",
+            "doc": "ObjDet interface. Documentation about the module.",
+            "constructor": {
+                "doc": "Create an element.",
+                "params": [
+                    {
+                        "name": "mediaPipeline",
+                        "doc": "the parent :rom:cls:`MediaPipeline`.",
+                        "type": "MediaPipeline",
+                        "final": true
+                    }
+                ]
+            },
+            "method": [
+                {
+                    "name": "setConfidence",
+                    "doc": "Set the confidence threshold for objects",
+                    "params": [
+                        {
+                            "name": "confidence",
+                            "doc": "0.01~0.99",
+                            "type": "float"
+                        }
+                    ]
+                },
+                {
+                    "name": "setBoxLimit",
+                    "doc": "Set max box number to return and draw",
+                    "params": [
+                        {
+                            "name": "boxLimit",
+                            "doc": "1~100",
+                            "type": "int"
+                        }
+                    ]
+                },
+                {
+                    "name": "setIsDraw",
+                    "doc": "Set whether to draw box or not",
+                    "params": [
+                        {
+                            "name": "isDraw",
+                            "doc": "true/false",
+                            "type": "bool"
+                        }
+                    ]
+                },
+                {
+                    "name": "startInferring",
+                    "doc": "Start detection",
+                    "params": []
+                },
+                {
+                    "name": "stopInferring",
+                    "doc": "Stop detection",
+                    "params": []
+                },
+                {
+                    "name": "destroy",
+                    "doc": "Explicitly destroy the model (return to model pool)",
+                    "params": []
+                }
+            ]
+        }
+    ]
 }

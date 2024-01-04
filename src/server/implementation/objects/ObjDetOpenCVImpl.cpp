@@ -10,7 +10,7 @@ namespace objdet {
 
 static ModelPool modelPool;
 
-ObjDetOpenCVImpl::ObjDetOpenCVImpl() {}
+ObjDetOpenCVImpl::ObjDetOpenCVImpl() { this->model = objdet::modelPool.getModel(); }
 
 /*
  * This function will be called with each new frame. mat variable
@@ -20,6 +20,46 @@ ObjDetOpenCVImpl::ObjDetOpenCVImpl() {}
 void ObjDetOpenCVImpl::process(cv::Mat &mat) {
   // FIXME: Implement this
   throw KurentoException(NOT_IMPLEMENTED, "ObjDetOpenCVImpl::process: Not implemented");
+}
+
+bool ObjDetOpenCVImpl::setConfidence(float confidence) {
+
+  if (confidence <= 0 || confidence > 1) {
+    return false;
+  }
+  this->confiThresh = std::min(std::max(confidence, 0.01f), 0.99f);
+  return true;
+}
+
+bool ObjDetOpenCVImpl::setBoxLimit(int boxLimit) {
+  if (boxLimit <= 0 || boxLimit > 100) {
+    return false;
+  }
+  this->boxLimit = std::min(std::max(boxLimit, 1), 100);
+  return true;
+}
+
+bool ObjDetOpenCVImpl::setIsDraw(bool isDraw) {
+  this->isDraw = isDraw;
+  return true;
+}
+
+bool ObjDetOpenCVImpl::startInferring() {
+  this->isInferring = true;
+  return true;
+}
+bool ObjDetOpenCVImpl::stopInferring() {
+  this->isInferring = false;
+  return true;
+}
+bool ObjDetOpenCVImpl::destroy() {
+  if (this->model != nullptr) {
+    objdet::modelPool.returnModel(this->model);
+    this->model = nullptr;
+    return true;
+  } else {
+    return false;
+  }
 }
 
 } // namespace objdet

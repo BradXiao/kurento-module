@@ -32,6 +32,13 @@ ObjDetImpl::StaticConstructor::StaticConstructor() {
   GST_DEBUG_CATEGORY_INIT(GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME " debug category");
 }
 
+void ObjDetImpl::setConfidence(float confidence) { ObjDetOpenCVImpl::setConfidence(confidence); };
+void ObjDetImpl::setBoxLimit(int boxLimit) { ObjDetOpenCVImpl::setBoxLimit(boxLimit); };
+void ObjDetImpl::setIsDraw(bool isDraw) { ObjDetOpenCVImpl::setIsDraw(isDraw); };
+void ObjDetImpl::startInferring() { ObjDetOpenCVImpl::startInferring(); };
+void ObjDetImpl::stopInferring() { ObjDetOpenCVImpl::stopInferring(); };
+void ObjDetImpl::destroy() { ObjDetOpenCVImpl::destroy(); };
+
 } // namespace objdet
 } // namespace module
 } // namespace kurento

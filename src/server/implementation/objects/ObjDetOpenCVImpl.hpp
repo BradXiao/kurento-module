@@ -2,6 +2,7 @@
 
 #ifndef __OBJ_DET_OPENCV_IMPL_HPP__
 #define __OBJ_DET_OPENCV_IMPL_HPP__
+#include "yolov7.hpp"
 
 #include "ObjDet.hpp"
 #include <EventHandler.hpp>
@@ -19,6 +20,20 @@ public:
   virtual ~ObjDetOpenCVImpl() = default;
 
   virtual void process(cv::Mat &mat);
+
+  bool setConfidence(float confidence);
+  bool setBoxLimit(int boxLimit);
+  bool setIsDraw(bool isDraw);
+  bool startInferring();
+  bool stopInferring();
+  bool destroy();
+
+private:
+  float confiThresh = 0.7;
+  int boxLimit = 10;
+  bool isDraw = false;
+  bool isInferring = false;
+  Yolov7trt *model;
 };
 
 } // namespace objdet
