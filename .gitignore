@@ -17,3 +17,7 @@ kurento-*_*_amd64.changes
 kurento-*_*.dsc
 kurento-*_*.tar.xz
 obj-x86_64-linux-gnu/
+
+.vscode
+*.trt
+.clang-format
