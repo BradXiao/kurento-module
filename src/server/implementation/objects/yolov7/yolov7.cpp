@@ -110,12 +110,12 @@ void Yolov7trt::initModel(const std::string &modelPath) {
   // engine
   GST_INFO("check model file");
   if (fs::exists(modelPath) == false) {
-    GST_ERROR("model not found: %s", modelPath);
+    GST_ERROR("model not found: %s", modelPath.c_str());
     throw std::runtime_error("model not found: " + modelPath);
   }
   std::ifstream file(modelPath, std::ios::binary);
   if (file.good() == false) {
-    GST_ERROR("model cannot load: %s", modelPath);
+    GST_ERROR("model cannot load: %s", modelPath.c_str());
     throw std::runtime_error("model cannot load: " + modelPath);
   }
   GST_INFO("load model");
