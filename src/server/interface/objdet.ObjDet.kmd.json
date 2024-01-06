@@ -81,7 +81,7 @@
                     "params": []
                 }
             ],
-            "events": ["boxDetected", "sessionInitState", "paramSetState"]
+            "events": ["boxDetected", "sessionInitState", "paramSetState", "errorMessage"]
         }
     ],
     "events": [
@@ -117,6 +117,18 @@
                 {
                     "name": "stateJSON",
                     "doc": "JSON format, {state:,param_name:}",
+                    "type": "String"
+                }
+            ]
+        },
+        {
+            "name": "errorMessage",
+            "doc": "return error message",
+            "extends": "Media",
+            "properties": [
+                {
+                    "name": "msgJSON",
+                    "doc": "JSON format, {state:,msg:}",
                     "type": "String"
                 }
             ]

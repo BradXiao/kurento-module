@@ -27,6 +27,7 @@ public:
   sigc::signal<void, boxDetected> signalboxDetected;
   sigc::signal<void, sessionInitState> signalsessionInitState;
   sigc::signal<void, paramSetState> signalparamSetState;
+  sigc::signal<void, errorMessage> signalerrorMessage;
 
   bool setConfidence(float confidence);
   bool setBoxLimit(int boxLimit);
@@ -47,6 +48,7 @@ private:
   std::time_t sessionCheckTimestamp;
   void sendSetParamSetResult(const std::string param_name, const std::string state);
   boost::uuids::random_generator uuid_gen;
+  void sendErrorMessage(const std::string &state, const std::string &msg);
 };
 
 } // namespace objdet

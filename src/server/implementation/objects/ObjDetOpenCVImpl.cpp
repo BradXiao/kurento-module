@@ -33,10 +33,12 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
   GST_DEBUG("process");
   if (this->sessionId == "") {
     GST_WARNING("session is not init");
+    sendErrorMessage("E001", "session is not init");
     return;
   }
   if (this->model == nullptr) {
     GST_DEBUG("model is nullptr");
+    sendErrorMessage("E002", "model is unavailable");
     return;
   }
 
@@ -44,6 +46,7 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
   if (now - this->sessionCheckTimestamp > 60) {
     if (objdet::modelPool.sessionExists(this->sessionId) == false) {
       GST_WARNING("session expired %s", this->sessionId.c_str());
+      sendErrorMessage("E003", "session expired");
       this->model = nullptr;
       return;
     }
@@ -184,6 +187,16 @@ bool ObjDetOpenCVImpl::destroy() {
   }
 }
 
+ObjDetOpenCVImpl::~ObjDetOpenCVImpl() {
+  if (this->model != nullptr) {
+    objdet::modelPool.returnModel(this->model, this->sessionId);
+    GST_INFO("release a model");
+  }
+}
+// ================================================================================================================
+// private
+// ================================================================================================================
+
 void ObjDetOpenCVImpl::sendSetParamSetResult(const std::string param_name, const std::string state) {
   Json::Value result;
   result["state"] = state;
@@ -193,12 +206,15 @@ void ObjDetOpenCVImpl::sendSetParamSetResult(const std::string param_name, const
   signalparamSetState(event);
 };
 
-ObjDetOpenCVImpl::~ObjDetOpenCVImpl() {
-  if (this->model != nullptr) {
-    objdet::modelPool.returnModel(this->model, this->sessionId);
-    GST_INFO("release a model");
-  }
-}
+void ObjDetOpenCVImpl::sendErrorMessage(const std::string &state, const std::string &msg) {
+
+  Json::Value result;
+  result["state"] = state;
+  result["msg"] = msg;
+  errorMessage event(this->getSharedFromThis(), errorMessage::getName(), utils::jsonToString(result));
+  GST_WARNING("send error message %s,%s", state.c_str(), msg.c_str());
+  signalerrorMessage(event);
+};
 
 } // namespace objdet
 } // namespace module
