@@ -1,6 +1,7 @@
 #include "yolov7.hpp"
 
 #include "utils.hpp"
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -122,15 +123,48 @@ public:
       }
     }
 
+    // take timeout model
+    GST_DEBUG("try get a timeout model");
+    bool isModelReleased = this->updateSession();
+    if (isModelReleased) {
+      return this->getModel();
+    }
     GST_WARNING("try to get a model but no model is available");
     return nullptr;
   }
 
-  void returnModel(Yolov7trt *model) {
+  void returnModel(Yolov7trt *model, std::string sessionId) {
     GST_INFO("return a model");
     std::lock_guard<std::recursive_mutex> lockNow(lock);
     uintptr_t address = reinterpret_cast<uintptr_t>(model);
     this->isUsed[address] = false;
+    this->sessionHeartbeat.erase(sessionId);
+    this->sessionToModel.erase(sessionId);
+  }
+
+  std::string registerSession(Yolov7trt *model, const std::string sessionId) {
+
+    std::lock_guard<std::recursive_mutex> lockNow(lock);
+
+    GST_INFO("get a session %s", sessionId.c_str());
+    this->sessionHeartbeat[sessionId] = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    this->sessionToModel[sessionId] = model;
+    return sessionId;
+  }
+
+  void heartbeat(std::string sessionId) {
+    GST_DEBUG("heartbeat %s", sessionId.c_str());
+    std::lock_guard<std::recursive_mutex> lockNow(lock);
+    if (this->sessionHeartbeat.find(sessionId) == this->sessionHeartbeat.end()) {
+      return;
+    }
+    this->sessionHeartbeat[sessionId] = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  }
+  bool sessionExists(std::string sessionId) {
+    GST_DEBUG("check session exists %s", sessionId.c_str());
+    std::lock_guard<std::recursive_mutex> lockNow(lock);
+    this->updateSession();
+    return this->sessionHeartbeat.find(sessionId) != this->sessionHeartbeat.end();
   }
 
   ~ModelPool() {
@@ -145,6 +179,29 @@ private:
   std::map<uintptr_t, bool> isUsed;
   int maxModelLimit;
   std::recursive_mutex lock;
+  std::map<std::string, std::time_t> sessionHeartbeat;
+  std::map<std::string, Yolov7trt *> sessionToModel;
+
+  bool updateSession() {
+    std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::vector<std::string> toBeDelete;
+    for (const auto &[id, timestamp] : this->sessionHeartbeat) {
+      if (now - timestamp > 60) {
+        toBeDelete.push_back(id);
+      }
+    }
+
+    for (const std::string &id : toBeDelete) {
+      GST_DEBUG("release expired model resourse %s", id.c_str());
+      this->sessionHeartbeat.erase(id);
+
+      uintptr_t address = reinterpret_cast<uintptr_t>(this->sessionToModel[id]);
+      this->isUsed[address] = false;
+
+      this->sessionToModel.erase(id);
+    }
+    return toBeDelete.size() != 0;
+  }
 };
 
 } // namespace objdet

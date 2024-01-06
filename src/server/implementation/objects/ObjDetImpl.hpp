@@ -49,6 +49,8 @@ public:
   void setIsDraw(bool isDraw);
   void startInferring();
   void stopInferring();
+  void heartbeat(const std::string &sessionId);
+  void initSession();
   void destroy();
 
 private:

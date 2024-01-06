@@ -50,6 +50,22 @@
                     ]
                 },
                 {
+                    "name": "heartbeat",
+                    "doc": "Heartbeat for keeping model active",
+                    "params": [
+                        {
+                            "name": "sessionId",
+                            "doc": "",
+                            "type": "String"
+                        }
+                    ]
+                },
+                {
+                    "name": "initSession",
+                    "doc": "",
+                    "params": []
+                },
+                {
                     "name": "startInferring",
                     "doc": "Start detection",
                     "params": []
@@ -65,7 +81,7 @@
                     "params": []
                 }
             ],
-            "events": ["boxDetected", "modelInitState", "paramSetState"]
+            "events": ["boxDetected", "sessionInitState", "paramSetState"]
         }
     ],
     "events": [
@@ -82,13 +98,13 @@
             ]
         },
         {
-            "name": "modelInitState",
-            "doc": "return the model init state",
+            "name": "sessionInitState",
+            "doc": "return the session init state",
             "extends": "Media",
             "properties": [
                 {
                     "name": "stateJSON",
-                    "doc": "JSON format, {state:,msg:}",
+                    "doc": "JSON format, {state:,msg:,sessionId:}",
                     "type": "String"
                 }
             ]

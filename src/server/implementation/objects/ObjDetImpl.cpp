@@ -49,6 +49,14 @@ void ObjDetImpl::stopInferring() {
   GST_INFO("stop inferring");
   ObjDetOpenCVImpl::stopInferring();
 };
+void ObjDetImpl::heartbeat(const std::string &sessionId) {
+  GST_INFO("heartbeat %s", sessionId.c_str());
+  ObjDetOpenCVImpl::heartbeat(sessionId);
+};
+void ObjDetImpl::initSession() {
+  GST_INFO("check model state");
+  ObjDetOpenCVImpl::initSession();
+}
 void ObjDetImpl::destroy() {
   GST_INFO("destroy");
   ObjDetOpenCVImpl::destroy();
