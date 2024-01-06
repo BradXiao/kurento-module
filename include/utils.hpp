@@ -242,7 +242,7 @@ static void drawObjs(const cv::Mat &srcRGBImg, cv::Mat &desRGBImg, const std::ve
 };
 
 static void drawObjsFixedColor(const cv::Mat &srcRGBImg, cv::Mat &desRGBImg, const std::vector<Obj> &objs, bool swapBR,
-                               float frontScale, std::vector<cv::Scalar> &colors) {
+                               float frontScale, const std::vector<cv::Scalar> &colors) {
   if (&srcRGBImg != &desRGBImg) {
     desRGBImg = srcRGBImg.clone();
   }
