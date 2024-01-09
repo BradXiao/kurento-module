@@ -98,7 +98,7 @@
                     "params": []
                 }
             ],
-            "events": ["boxDetected", "sessionInitState", "paramSetState", "errorMessage", "modelNamesEvent"]
+            "events": ["boxDetected", "sessionInitState", "paramSetState", "errorMessage", "modelNamesEvent", "modelChanged"]
         }
     ],
     "events": [
@@ -150,7 +150,6 @@
                 }
             ]
         },
-
         {
             "name": "modelNamesEvent",
             "doc": "return model names",
@@ -159,6 +158,18 @@
                 {
                     "name": "modelNamesJSON",
                     "doc": "JSON format, []",
+                    "type": "String"
+                }
+            ]
+        },
+        {
+            "name": "modelChanged",
+            "doc": "return the target model name",
+            "extends": "Media",
+            "properties": [
+                {
+                    "name": "changedInfoJSON",
+                    "doc": "",
                     "type": "String"
                 }
             ]

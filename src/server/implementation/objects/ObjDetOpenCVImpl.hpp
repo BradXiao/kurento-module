@@ -29,6 +29,7 @@ public:
   sigc::signal<void, paramSetState> signalparamSetState;
   sigc::signal<void, errorMessage> signalerrorMessage;
   sigc::signal<void, modelNamesEvent> signalmodelNamesEvent;
+  sigc::signal<void, modelChanged> signalmodelChanged;
 
   bool setConfidence(float confidence);
   bool setBoxLimit(int boxLimit);

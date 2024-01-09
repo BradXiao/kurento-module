@@ -7,6 +7,7 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <chrono>
 #include <gst/gst.h>
+#include <json/json.h>
 
 GST_DEBUG_CATEGORY_STATIC(kurento_obj_det_core);
 #define GST_CAT_DEFAULT kurento_obj_det_core
@@ -162,15 +163,40 @@ bool ObjDetOpenCVImpl::initSession() {
 }
 
 bool ObjDetOpenCVImpl::changeModel(const std::string &modelName) {
-  GST_INFO("change model");
+  GST_INFO("change model to %s", modelName.c_str());
+
+  Yolov7trt *targetModel = objdet::modelPool.getModel(modelName);
+
+  if (targetModel == nullptr) {
+    GST_WARNING("target model is not available %s", modelName.c_str());
+    Json::Value modelState;
+    modelState["state"] = "E006";
+    modelState["targetModel"] = modelName;
+    modelState["msg"] = "Model not avaiable or not found";
+    modelChanged event(this->getSharedFromThis(), modelChanged::getName(), utils::jsonToString(modelState));
+    signalmodelChanged(event);
+  }
+  GST_DEBUG("switch model");
   bool isInfer = this->isInferring;
   this->isInferring = false;
 
   if (this->model != nullptr) {
     objdet::modelPool.returnModel(this->modelName, this->model, this->sessionId);
-    this->model = nullptr;
   }
-  this->initSession(modelName);
+
+  this->model = targetModel;
+  this->modelName = modelName;
+  objdet::modelPool.registerSession(this->modelName, this->model, this->sessionId);
+
+  Json::Value modelState;
+  GST_INFO("model is ready");
+  modelState["state"] = "000";
+  modelState["targetModel"] = modelName;
+  modelState["msg"] = "";
+  this->sessionCheckTimestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+  modelChanged event(this->getSharedFromThis(), modelChanged::getName(), utils::jsonToString(modelState));
+  signalmodelChanged(event);
 
   this->isInferring = isInfer; // restore state
   return true;

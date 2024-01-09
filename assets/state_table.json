@@ -27,5 +27,9 @@
     {
         "state": "E005",
         "meaning": "cannot get a model; all models are occupied"
+    },
+    {
+        "state": "E006",
+        "meaning": "cannot switch to target model"
     }
 ]
