@@ -31,14 +31,20 @@ ObjDetOpenCVImpl::ObjDetOpenCVImpl() {
  */
 void ObjDetOpenCVImpl::process(cv::Mat &mat) {
   GST_DEBUG("process");
+  if (this->isInferring == false) {
+    GST_DEBUG("no inferring");
+    return;
+  }
   if (this->sessionId == "") {
     GST_WARNING("session is not init");
     sendErrorMessage("E001", "session is not init");
+    this->isInferring = false;
     return;
   }
   if (this->model == nullptr) {
     GST_DEBUG("model is nullptr");
     sendErrorMessage("E002", "model is unavailable");
+    this->isInferring = false;
     return;
   }
 
@@ -48,66 +54,63 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
       GST_WARNING("session expired %s", this->sessionId.c_str());
       sendErrorMessage("E003", "session expired");
       this->model = nullptr;
+      this->isInferring = false;
       return;
     }
 
     this->sessionCheckTimestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   }
 
-  if (this->isInferring == true) {
-    GST_DEBUG("do inferring");
-    std::vector<utils::Obj> objs;
-    // infer
-    GST_DEBUG("feed mat into model");
-    this->model->infer(mat, objs);
-    GST_DEBUG("inferred %d objs", static_cast<int>(objs.size()));
-    std::vector<utils::Obj> objsTmp;
-    // confidence
-    for (utils::Obj &obj : objs) {
-      if (obj.confi >= this->confiThresh) {
-        auto it = std::lower_bound(objsTmp.begin(), objsTmp.end(), obj);
-        objsTmp.insert(it, obj);
-      }
+  GST_DEBUG("do inferring");
+  std::vector<utils::Obj> objs;
+  // infer
+  GST_DEBUG("feed mat into model");
+  this->model->infer(mat, objs);
+  GST_DEBUG("inferred %d objs", static_cast<int>(objs.size()));
+  std::vector<utils::Obj> objsTmp;
+  // confidence
+  for (utils::Obj &obj : objs) {
+    if (obj.confi >= this->confiThresh) {
+      auto it = std::lower_bound(objsTmp.begin(), objsTmp.end(), obj);
+      objsTmp.insert(it, obj);
     }
-    objs = objsTmp;
-    GST_DEBUG("%d objs are above confidence %f", static_cast<int>(objs.size()), this->confiThresh);
-    // box limit
-    if (static_cast<int>(objs.size()) > this->boxLimit) {
-      std::vector<utils::Obj> objsTmp(objs.begin(), objs.begin() + std::min(objs.size(), size_t(this->boxLimit)));
-      objs = objsTmp;
-      GST_DEBUG("%d objs after truncating additional objs, max= %d", static_cast<int>(objs.size()), this->boxLimit);
-    }
-
-    // draw box
-    if (this->isDraw == true && objs.size() > 0) {
-      GST_DEBUG("draw objs");
-      utils::drawObjsFixedColor(mat, mat, objs, false, 0.4, utils::CLASSCOLORS);
-    }
-
-    Json::Value boxes(Json::arrayValue);
-    for (utils::Obj &obj : objs) {
-      Json::Value box;
-      box["x1"] = obj.p1.x;
-      box["y1"] = obj.p1.y;
-      box["x2"] = obj.p2.x;
-      box["y2"] = obj.p2.y;
-      box["name"] = obj.name;
-      box["confi"] = obj.confi;
-      boxes.append(box);
-    }
-    GST_DEBUG("signalboxDetected");
-    boxDetected event(this->getSharedFromThis(), boxDetected::getName(), utils::jsonToString(boxes));
-    signalboxDetected(event);
-  } else {
-    GST_DEBUG("no inferring");
   }
+  objs = objsTmp;
+  GST_DEBUG("%d objs are above confidence %f", static_cast<int>(objs.size()), this->confiThresh);
+  // box limit
+  if (static_cast<int>(objs.size()) > this->boxLimit) {
+    std::vector<utils::Obj> objsTmp(objs.begin(), objs.begin() + std::min(objs.size(), size_t(this->boxLimit)));
+    objs = objsTmp;
+    GST_DEBUG("%d objs after truncating additional objs, max= %d", static_cast<int>(objs.size()), this->boxLimit);
+  }
+
+  // draw box
+  if (this->isDraw == true && objs.size() > 0) {
+    GST_DEBUG("draw objs");
+    utils::drawObjsFixedColor(mat, mat, objs, false, 0.4, utils::CLASSCOLORS);
+  }
+
+  Json::Value boxes(Json::arrayValue);
+  for (utils::Obj &obj : objs) {
+    Json::Value box;
+    box["x1"] = obj.p1.x;
+    box["y1"] = obj.p1.y;
+    box["x2"] = obj.p2.x;
+    box["y2"] = obj.p2.y;
+    box["name"] = obj.name;
+    box["confi"] = obj.confi;
+    boxes.append(box);
+  }
+  GST_DEBUG("signalboxDetected");
+  boxDetected event(this->getSharedFromThis(), boxDetected::getName(), utils::jsonToString(boxes));
+  signalboxDetected(event);
 }
 
 bool ObjDetOpenCVImpl::setConfidence(float confidence) {
   GST_INFO("set confidence to %f", confidence);
   if (confidence <= 0 || confidence > 1) {
     GST_WARNING("confidence set error");
-    this->sendSetParamSetResult("confidence", "E001");
+    this->sendSetParamSetResult("confidence", "E004");
     return false;
   }
   this->confiThresh = std::min(std::max(confidence, 0.01f), 0.99f);
@@ -119,7 +122,7 @@ bool ObjDetOpenCVImpl::setBoxLimit(int boxLimit) {
   GST_INFO("set boxLimit to %d", boxLimit);
   if (boxLimit <= 0 || boxLimit > 100) {
     GST_WARNING("boxLimit set error");
-    this->sendSetParamSetResult("boxLimit", "E001");
+    this->sendSetParamSetResult("boxLimit", "E004");
     return false;
   }
   this->boxLimit = std::min(std::max(boxLimit, 1), 100);
@@ -146,11 +149,13 @@ bool ObjDetOpenCVImpl::stopInferring() {
   this->sendSetParamSetResult("stopinferring", "000");
   return true;
 }
-bool ObjDetOpenCVImpl::heartbeat(std::string sessionId) {
+
+bool ObjDetOpenCVImpl::heartbeat(const std::string &sessionId) {
   GST_DEBUG("heartbeat %s", sessionId.c_str());
   objdet::modelPool.heartbeat(this->modelName, sessionId);
   return true;
 }
+
 bool ObjDetOpenCVImpl::initSession() {
   this->initSession("default");
   return true;
@@ -203,6 +208,7 @@ bool ObjDetOpenCVImpl::destroy() {
 ObjDetOpenCVImpl::~ObjDetOpenCVImpl() {
   if (this->model != nullptr) {
     objdet::modelPool.returnModel(this->modelName, this->model, this->sessionId);
+    this->model = nullptr;
     GST_INFO("release a model");
   }
 }
@@ -210,14 +216,14 @@ ObjDetOpenCVImpl::~ObjDetOpenCVImpl() {
 // private
 // ================================================================================================================
 
-void ObjDetOpenCVImpl::sendSetParamSetResult(const std::string param_name, const std::string state) {
+void ObjDetOpenCVImpl::sendSetParamSetResult(const std::string &param_name, const std::string &state) {
   Json::Value result;
   result["state"] = state;
   result["param_name"] = param_name;
   paramSetState event(this->getSharedFromThis(), paramSetState::getName(), utils::jsonToString(result));
   GST_DEBUG("signalparamSetState");
   signalparamSetState(event);
-};
+}
 
 void ObjDetOpenCVImpl::sendErrorMessage(const std::string &state, const std::string &msg) {
 
@@ -227,7 +233,7 @@ void ObjDetOpenCVImpl::sendErrorMessage(const std::string &state, const std::str
   errorMessage event(this->getSharedFromThis(), errorMessage::getName(), utils::jsonToString(result));
   GST_WARNING("send error message %s,%s", state.c_str(), msg.c_str());
   signalerrorMessage(event);
-};
+}
 
 bool ObjDetOpenCVImpl::initSession(const std::string &modelName) {
   GST_INFO("init session");
@@ -257,7 +263,7 @@ bool ObjDetOpenCVImpl::initSession(const std::string &modelName) {
   sessionInitState event(this->getSharedFromThis(), sessionInitState::getName(), utils::jsonToString(modelState));
   signalsessionInitState(event);
   return true;
-};
+}
 
 } // namespace objdet
 } // namespace module

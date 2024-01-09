@@ -1,0 +1,31 @@
+[
+    { "hint": "this is the global state table and meanings" },
+    {
+        "state": "000",
+        "meaning": "success"
+    },
+    {
+        "state": "E001",
+        "meaning": "session not init or expired"
+    },
+    {
+        "state": "W001",
+        "meaning": "no model needs to be destroyed"
+    },
+    {
+        "state": "E002",
+        "meaning": "no model for processing; either model is not init or session expired"
+    },
+    {
+        "state": "E003",
+        "meaning": "session expired; make sure the heartbeat works properly"
+    },
+    {
+        "state": "E004",
+        "meaning": "parameter error; check if out of bound"
+    },
+    {
+        "state": "E005",
+        "meaning": "cannot get a model; all models are occupied"
+    }
+]
