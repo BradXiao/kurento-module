@@ -17,6 +17,21 @@ GST_DEBUG_CATEGORY_STATIC(obj_det_model_pool);
 namespace kurento {
 namespace module {
 namespace objdet {
+
+class ModelBundle {
+public:
+  std::vector<Yolov7trt *> models;
+  std::map<uintptr_t, bool> isUsed;
+  std::map<std::string, std::time_t> sessionHeartbeat;
+  std::map<std::string, Yolov7trt *> sessionToModel;
+
+  ~ModelBundle() {
+    for (Yolov7trt *model : this->models) {
+      delete model;
+    }
+  }
+};
+
 class ModelPool {
 public:
   ModelPool() {
@@ -55,53 +70,84 @@ public:
     GST_INFO("finish loading config file");
     GST_INFO("%s", utils::jsonToString(config).c_str());
 
-    this->maxModelLimit = std::max(config["max_model_limit"].asInt(), 1);
-
-    std::string modelPath = config["model_abs_path"].asString();
-
-    GST_INFO("check model file");
-    if (fs::exists(modelPath) == false) {
-      GST_ERROR("object detection model not found: %s", modelPath.c_str());
-      throw std::runtime_error(std::string("object detection model not found: ") + modelPath);
-    }
-
-    int deviceID = std::max(config["device_id"].asInt(), 0);
-
+    int deviceId = std::max(config["device_id"].asInt(), 0);
+    cudaSetDevice(deviceId);
+    GST_INFO("device id = %d", deviceId);
     // init models
-    GST_INFO("Start init %d models", this->maxModelLimit);
-    for (int i = 0; i < this->maxModelLimit; i++) {
-      GST_INFO("Init %d/%d model", i + 1, this->maxModelLimit);
-      Yolov7trt *md;
-      try {
-        md = new Yolov7trt(modelPath, deviceID, std::to_string(i));
-        GST_INFO("Finish init %d/%d model", i + 1, this->maxModelLimit);
-      } catch (const std::exception &e) {
-        GST_ERROR("Error init %d/%d model: %s", i + 1, this->maxModelLimit, e.what());
+    this->defaultModelName = config["default_model_name"].asString();
+    int totalModelNum = static_cast<int>(config["models"].size());
+    for (int i = 0; i < totalModelNum; i++) {
+      Json::Value modelParam = config["models"][i];
+      // check model enabled
+      if (modelParam["enabled"].asBool() == false) {
+        GST_INFO("Skip disabled model %s", modelParam["name"].asString().c_str());
         continue;
       }
+      if (modelParam["name"].asString() == "default") {
+        GST_ERROR("model name 'default' is a pre-defined keyword");
+        throw std::runtime_error("model name 'default' is a pre-defined keyword");
+        break;
+      }
 
-      this->models.push_back(md);
-      uintptr_t modelAddress = reinterpret_cast<uintptr_t>(md);
-      this->isUsed[modelAddress] = false;
-      GST_INFO("Added %d/%d model", i + 1, this->maxModelLimit);
+      int maxModelLimit = std::max(modelParam["max_model_limit"].asInt(), 1);
+      GST_INFO("Start init %d %s models", maxModelLimit, modelParam["name"].asString().c_str());
+
+      // check model file
+      std::string modelPath = modelParam["model_abs_path"].asString();
+      GST_INFO("check model file");
+      if (fs::exists(modelPath) == false) {
+        GST_ERROR("object detection model not found: %s", modelPath.c_str());
+        throw std::runtime_error(std::string("object detection model not found: ") + modelPath);
+      }
+      // load models
+      ModelBundle *bundle = new ModelBundle();
+      for (int i = 0; i < maxModelLimit; i++) {
+        this->checkVRAM(deviceId, 500000000);
+        GST_INFO("Init %d/%d %s model", i + 1, maxModelLimit, modelParam["name"].asString().c_str());
+        Yolov7trt *md;
+        try {
+          md = new Yolov7trt(modelPath, deviceId, std::to_string(i));
+          GST_INFO("Finish init %d/%d %s model", i + 1, maxModelLimit, modelParam["name"].asString().c_str());
+        } catch (const std::exception &e) {
+          GST_ERROR("Error init %d/%d %s model", i + 1, maxModelLimit, modelParam["name"].asString().c_str());
+          continue;
+        }
+        bundle->models.push_back(md);
+        uintptr_t modelAddress = reinterpret_cast<uintptr_t>(md);
+        bundle->isUsed[modelAddress] = false;
+        GST_INFO("Added %d/%d %s model", i + 1, maxModelLimit, modelParam["name"].asString().c_str());
+      }
+
+      this->modelBundles[modelParam["name"].asString()] = bundle;
     }
-  };
 
-  int getAvailableCount() {
+    if (this->modelBundles.find(this->defaultModelName) == this->modelBundles.end()) {
+      GST_ERROR("default model name not found (%s)", this->defaultModelName.c_str());
+      throw std::runtime_error("default model name not found");
+    }
+  }
+
+  int getAvailableCount(const std::string &modelName) {
     std::lock_guard<std::recursive_mutex> lockNow(lock);
-
+    if (this->modelExists(modelName) == false) {
+      GST_ERROR("model bundle %s not found", modelName.c_str());
+      return -1;
+    }
     int count = 0;
-    for (auto const &[address, used] : this->isUsed) {
+    for (auto const &[_, used] : this->modelBundles[modelName]->isUsed) {
       count += used ? 1 : 0;
     }
-    GST_DEBUG("available model is %d", count);
+    GST_DEBUG("available %s model is %d", modelName.c_str(), count);
     return count;
-  };
+  }
 
-  bool isAvailable() {
+  bool isAvailable(const std::string &modelName) {
     std::lock_guard<std::recursive_mutex> lockNow(lock);
-
-    for (auto const &[address, used] : this->isUsed) {
+    if (this->modelExists(modelName) == false) {
+      GST_ERROR("model %s not found", modelName.c_str());
+      return false;
+    }
+    for (auto const &[_, used] : this->modelBundles[modelName]->isUsed) {
       if (used == false) {
         GST_DEBUG("is available=true");
         return true;
@@ -109,15 +155,20 @@ public:
     }
     GST_DEBUG("is available=false");
     return false;
-  };
+  }
 
-  Yolov7trt *getModel() {
+  Yolov7trt *getModel(const std::string &modelName) {
     std::lock_guard<std::recursive_mutex> lockNow(lock);
-    GST_INFO("get a free model");
-    for (Yolov7trt *model : this->models) {
+    if (this->modelExists(modelName) == false) {
+      GST_ERROR("model %s not found", modelName.c_str());
+      return nullptr;
+    }
+    GST_INFO("get a %s model", modelName.c_str());
+    ModelBundle *bundle = this->modelBundles[modelName];
+    for (Yolov7trt *model : bundle->models) {
       uintptr_t address = reinterpret_cast<uintptr_t>(model);
-      if (this->isUsed[address] == false) {
-        this->isUsed[address] = true;
+      if (bundle->isUsed[address] == false) {
+        bundle->isUsed[address] = true;
         GST_INFO("get a model successfully");
         return model;
       }
@@ -125,67 +176,108 @@ public:
 
     // take timeout model
     GST_DEBUG("try get a timeout model");
-    bool isModelReleased = this->updateSession();
+    bool isModelReleased = this->updateSession(modelName);
     if (isModelReleased) {
-      return this->getModel();
+      return this->getModel(modelName);
     }
-    GST_WARNING("try to get a model but no model is available");
+    GST_WARNING("try to get %s model but no model is available", modelName.c_str());
     return nullptr;
   }
 
-  void returnModel(Yolov7trt *model, std::string sessionId) {
-    GST_INFO("return a model");
+  std::string getDefaultModelName() {
     std::lock_guard<std::recursive_mutex> lockNow(lock);
-    uintptr_t address = reinterpret_cast<uintptr_t>(model);
-    this->isUsed[address] = false;
-    this->sessionHeartbeat.erase(sessionId);
-    this->sessionToModel.erase(sessionId);
+    return this->defaultModelName;
   }
 
-  std::string registerSession(Yolov7trt *model, const std::string sessionId) {
-
+  void returnModel(const std::string &modelName, Yolov7trt *model, const std::string &sessionId) {
+    GST_INFO("return a %s model", modelName.c_str());
     std::lock_guard<std::recursive_mutex> lockNow(lock);
+    if (this->modelExists(modelName) == false) {
+      GST_ERROR("model %s not found", modelName.c_str());
+      return;
+    }
+    uintptr_t address = reinterpret_cast<uintptr_t>(model);
+    ModelBundle *bundle = this->modelBundles[modelName];
+    bundle->isUsed[address] = false;
+    bundle->sessionHeartbeat.erase(sessionId);
+    bundle->sessionToModel.erase(sessionId);
+  }
 
+  void getModelNames(std::vector<std::string> &names) {
+    GST_INFO("get model names");
+    std::lock_guard<std::recursive_mutex> lockNow(lock);
+    names.clear();
+    for (auto &[modelName, _] : this->modelBundles) {
+      names.push_back(modelName);
+    }
+  }
+
+  bool modelExists(const std::string &modelName) {
+    GST_INFO("check model exists");
+    std::lock_guard<std::recursive_mutex> lockNow(lock);
+    return this->modelBundles.find(modelName) != this->modelBundles.end();
+  }
+
+  std::string registerSession(const std::string &modelName, Yolov7trt *model, const std::string &sessionId) {
+    std::lock_guard<std::recursive_mutex> lockNow(lock);
+    if (this->modelExists(modelName) == false) {
+      GST_ERROR("model %s not found", modelName.c_str());
+      return "model not found";
+    }
     GST_INFO("get a session %s", sessionId.c_str());
-    this->sessionHeartbeat[sessionId] = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    this->sessionToModel[sessionId] = model;
+    ModelBundle *bundle = this->modelBundles[modelName];
+    bundle->sessionHeartbeat[sessionId] = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    bundle->sessionToModel[sessionId] = model;
     return sessionId;
   }
 
-  void heartbeat(std::string sessionId) {
+  void heartbeat(const std::string &modelName, std::string sessionId) {
     GST_DEBUG("heartbeat %s", sessionId.c_str());
     std::lock_guard<std::recursive_mutex> lockNow(lock);
-    if (this->sessionHeartbeat.find(sessionId) == this->sessionHeartbeat.end()) {
+    if (this->modelExists(modelName) == false) {
+      GST_ERROR("model %s not found", modelName.c_str());
       return;
     }
-    this->sessionHeartbeat[sessionId] = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    ModelBundle *bundle = this->modelBundles[modelName];
+    if (bundle->sessionHeartbeat.find(sessionId) == bundle->sessionHeartbeat.end()) {
+      return;
+    }
+    bundle->sessionHeartbeat[sessionId] = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   }
-  bool sessionExists(std::string sessionId) {
+
+  bool sessionExists(const std::string &modelName, std::string sessionId) {
     GST_DEBUG("check session exists %s", sessionId.c_str());
     std::lock_guard<std::recursive_mutex> lockNow(lock);
-    this->updateSession();
-    return this->sessionHeartbeat.find(sessionId) != this->sessionHeartbeat.end();
+    if (this->modelExists(modelName) == false) {
+      GST_ERROR("model %s not found", modelName.c_str());
+      return false;
+    }
+    this->updateSession(modelName);
+    ModelBundle *bundle = this->modelBundles[modelName];
+    return bundle->sessionHeartbeat.find(sessionId) != bundle->sessionHeartbeat.end();
   }
 
   ~ModelPool() {
     GST_INFO("destroy models");
-    for (Yolov7trt *m : models) {
-      delete m;
+    for (auto &[_, modelBundle] : this->modelBundles) {
+      delete modelBundle;
     }
-  };
+  }
 
 private:
-  std::vector<Yolov7trt *> models;
-  std::map<uintptr_t, bool> isUsed;
-  int maxModelLimit;
+  std::map<std::string, ModelBundle *> modelBundles;
   std::recursive_mutex lock;
-  std::map<std::string, std::time_t> sessionHeartbeat;
-  std::map<std::string, Yolov7trt *> sessionToModel;
+  std::string defaultModelName;
 
-  bool updateSession() {
+  bool updateSession(const std::string &modelName) {
+    if (this->modelExists(modelName) == false) {
+      GST_ERROR("model %s not found", modelName.c_str());
+      return false;
+    }
+    ModelBundle *bundle = this->modelBundles[modelName];
     std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::vector<std::string> toBeDelete;
-    for (const auto &[id, timestamp] : this->sessionHeartbeat) {
+    for (const auto &[id, timestamp] : bundle->sessionHeartbeat) {
       if (now - timestamp > 60) {
         toBeDelete.push_back(id);
       }
@@ -193,14 +285,23 @@ private:
 
     for (const std::string &id : toBeDelete) {
       GST_DEBUG("release expired model resourse %s", id.c_str());
-      this->sessionHeartbeat.erase(id);
-
-      uintptr_t address = reinterpret_cast<uintptr_t>(this->sessionToModel[id]);
-      this->isUsed[address] = false;
-
-      this->sessionToModel.erase(id);
+      bundle->sessionHeartbeat.erase(id);
+      uintptr_t address = reinterpret_cast<uintptr_t>(bundle->sessionToModel[id]);
+      bundle->isUsed[address] = false;
+      bundle->sessionToModel.erase(id);
     }
     return toBeDelete.size() != 0;
+  }
+
+  void checkVRAM(const int deviceId, const size_t minBytes) {
+    cudaSetDevice(deviceId);
+    size_t freeMem, totalMem;
+    cudaMemGetInfo(&freeMem, &totalMem);
+    if (freeMem < minBytes) {
+      GST_ERROR("GPU available memory insufficient %zu Bytes (<%zu), please disable or decrease the model number limit in config file",
+                freeMem, minBytes);
+      throw std::runtime_error("insufficient VRAM");
+    }
   }
 };
 

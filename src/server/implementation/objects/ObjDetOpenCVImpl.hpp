@@ -28,6 +28,7 @@ public:
   sigc::signal<void, sessionInitState> signalsessionInitState;
   sigc::signal<void, paramSetState> signalparamSetState;
   sigc::signal<void, errorMessage> signalerrorMessage;
+  sigc::signal<void, modelNamesEvent> signalmodelNamesEvent;
 
   bool setConfidence(float confidence);
   bool setBoxLimit(int boxLimit);
@@ -36,6 +37,8 @@ public:
   bool stopInferring();
   bool heartbeat(std::string sessionId);
   bool initSession();
+  bool changeModel(const std::string &modelName);
+  bool getModelNames();
   bool destroy();
 
 private:
@@ -44,11 +47,13 @@ private:
   int boxLimit = 10;
   bool isDraw = false;
   bool isInferring = false;
+  std::string modelName;
   Yolov7trt *model;
   std::time_t sessionCheckTimestamp;
   void sendSetParamSetResult(const std::string param_name, const std::string state);
   boost::uuids::random_generator uuid_gen;
   void sendErrorMessage(const std::string &state, const std::string &msg);
+  bool initSession(const std::string &modelName);
 };
 
 } // namespace objdet

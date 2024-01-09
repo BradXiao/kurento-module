@@ -51,6 +51,8 @@ public:
   void stopInferring();
   void heartbeat(const std::string &sessionId);
   void initSession();
+  void changeModel(const std::string &modelName);
+  void getModelNames();
   void destroy();
 
 private:

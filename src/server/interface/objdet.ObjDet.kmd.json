@@ -61,7 +61,24 @@
                     ]
                 },
                 {
+                    "name": "changeModel",
+                    "doc": "Switch to other models",
+                    "params": [
+                        {
+                            "name": "modelName",
+                            "doc": "",
+                            "type": "String"
+                        }
+                    ]
+                },
+
+                {
                     "name": "initSession",
+                    "doc": "",
+                    "params": []
+                },
+                {
+                    "name": "getModelNames",
                     "doc": "",
                     "params": []
                 },
@@ -81,7 +98,7 @@
                     "params": []
                 }
             ],
-            "events": ["boxDetected", "sessionInitState", "paramSetState", "errorMessage"]
+            "events": ["boxDetected", "sessionInitState", "paramSetState", "errorMessage", "modelNamesEvent"]
         }
     ],
     "events": [
@@ -129,6 +146,19 @@
                 {
                     "name": "msgJSON",
                     "doc": "JSON format, {state:,msg:}",
+                    "type": "String"
+                }
+            ]
+        },
+
+        {
+            "name": "modelNamesEvent",
+            "doc": "return model names",
+            "extends": "Media",
+            "properties": [
+                {
+                    "name": "modelNamesJSON",
+                    "doc": "JSON format, []",
                     "type": "String"
                 }
             ]

@@ -57,6 +57,17 @@ void ObjDetImpl::initSession() {
   GST_INFO("check model state");
   ObjDetOpenCVImpl::initSession();
 }
+
+void ObjDetImpl::changeModel(const std::string &modelName) {
+  GST_INFO("switch to %s model", modelName.c_str());
+  ObjDetOpenCVImpl::changeModel(modelName);
+}
+
+void ObjDetImpl::getModelNames() {
+  GST_INFO("get model names");
+  ObjDetOpenCVImpl::getModelNames();
+}
+
 void ObjDetImpl::destroy() {
   GST_INFO("destroy");
   ObjDetOpenCVImpl::destroy();

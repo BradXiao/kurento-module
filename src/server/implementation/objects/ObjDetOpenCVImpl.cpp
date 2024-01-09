@@ -44,7 +44,7 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
 
   std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   if (now - this->sessionCheckTimestamp > 60) {
-    if (objdet::modelPool.sessionExists(this->sessionId) == false) {
+    if (objdet::modelPool.sessionExists(this->modelName, this->sessionId) == false) {
       GST_WARNING("session expired %s", this->sessionId.c_str());
       sendErrorMessage("E003", "session expired");
       this->model = nullptr;
@@ -148,34 +148,47 @@ bool ObjDetOpenCVImpl::stopInferring() {
 }
 bool ObjDetOpenCVImpl::heartbeat(std::string sessionId) {
   GST_DEBUG("heartbeat %s", sessionId.c_str());
-  modelPool.heartbeat(sessionId);
+  objdet::modelPool.heartbeat(this->modelName, sessionId);
   return true;
 }
 bool ObjDetOpenCVImpl::initSession() {
-  GST_INFO("init session");
-  this->model = objdet::modelPool.getModel();
-  Json::Value modelState;
-  if (this->model != nullptr) {
-    this->sessionId = objdet::modelPool.registerSession(this->model, this->sessionId);
-    GST_INFO("model is ready");
-    modelState["state"] = "000";
-    modelState["msg"] = "";
-    modelState["sessionId"] = this->sessionId;
-    this->sessionCheckTimestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  } else {
-    GST_WARNING("no model is available");
-    modelState["state"] = "E001";
-    modelState["msg"] = "Model not avaiable";
-    modelState["sessionId"] = "";
-  }
-
-  sessionInitState event(this->getSharedFromThis(), sessionInitState::getName(), utils::jsonToString(modelState));
-  signalsessionInitState(event);
+  this->initSession("default");
   return true;
 }
+
+bool ObjDetOpenCVImpl::changeModel(const std::string &modelName) {
+  GST_INFO("change model");
+  bool isInfer = this->isInferring;
+  this->isInferring = false;
+
+  if (this->model != nullptr) {
+    objdet::modelPool.returnModel(this->modelName, this->model, this->sessionId);
+    this->model = nullptr;
+  }
+  this->initSession(modelName);
+
+  this->isInferring = isInfer; // restore state
+  return true;
+}
+
+bool ObjDetOpenCVImpl::getModelNames() {
+  GST_INFO("get model names");
+  Json::Value modelNamesJson(Json::arrayValue);
+  std::vector<std::string> modelNames;
+  objdet::modelPool.getModelNames(modelNames);
+
+  for (const auto &name : modelNames) {
+    modelNamesJson.append(name);
+  }
+
+  modelNamesEvent event(this->getSharedFromThis(), modelNamesEvent::getName(), utils::jsonToString(modelNamesJson));
+  signalmodelNamesEvent(event);
+  return true;
+}
+
 bool ObjDetOpenCVImpl::destroy() {
   if (this->model != nullptr) {
-    objdet::modelPool.returnModel(this->model, this->sessionId);
+    objdet::modelPool.returnModel(this->modelName, this->model, this->sessionId);
     GST_INFO("release a model");
     this->model = nullptr;
     this->sendSetParamSetResult("destroy", "000");
@@ -189,7 +202,7 @@ bool ObjDetOpenCVImpl::destroy() {
 
 ObjDetOpenCVImpl::~ObjDetOpenCVImpl() {
   if (this->model != nullptr) {
-    objdet::modelPool.returnModel(this->model, this->sessionId);
+    objdet::modelPool.returnModel(this->modelName, this->model, this->sessionId);
     GST_INFO("release a model");
   }
 }
@@ -214,6 +227,36 @@ void ObjDetOpenCVImpl::sendErrorMessage(const std::string &state, const std::str
   errorMessage event(this->getSharedFromThis(), errorMessage::getName(), utils::jsonToString(result));
   GST_WARNING("send error message %s,%s", state.c_str(), msg.c_str());
   signalerrorMessage(event);
+};
+
+bool ObjDetOpenCVImpl::initSession(const std::string &modelName) {
+  GST_INFO("init session");
+  this->modelName = modelName;
+  if (this->modelName == "default") {
+    this->modelName = objdet::modelPool.getDefaultModelName();
+  }
+  this->model = objdet::modelPool.getModel(this->modelName);
+
+  Json::Value modelState;
+  if (this->model != nullptr) {
+    this->sessionId = objdet::modelPool.registerSession(this->modelName, this->model, this->sessionId);
+    GST_INFO("model is ready");
+    modelState["state"] = "000";
+    modelState["defaultModel"] = this->modelName;
+    modelState["msg"] = "";
+    modelState["sessionId"] = this->sessionId;
+    this->sessionCheckTimestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  } else {
+    GST_WARNING("no model is available");
+    modelState["state"] = "E005";
+    modelState["defaultModel"] = "";
+    modelState["msg"] = "Model not avaiable or not found";
+    modelState["sessionId"] = "";
+  }
+
+  sessionInitState event(this->getSharedFromThis(), sessionInitState::getName(), utils::jsonToString(modelState));
+  signalsessionInitState(event);
+  return true;
 };
 
 } // namespace objdet

@@ -1,5 +1,24 @@
 {
-    "max_model_limit": 5,
-    "model_abs_path": "assets/yolov7-nms.trt",
-    "device_id": 0
+    "device_id": 0,
+    "default_model_name": "yolov7-tiny",
+    "models": [
+        {
+            "enabled": true,
+            "name": "yolov7",
+            "max_model_limit": 1,
+            "model_abs_path": "assets/yolov7-nms.trt"
+        },
+        {
+            "enabled": true,
+            "name": "yolov7-tiny",
+            "max_model_limit": 1,
+            "model_abs_path": "assets/yolov7-tiny-nms.trt"
+        },
+        {
+            "enabled": true,
+            "name": "yolov7-w6",
+            "max_model_limit": 1,
+            "model_abs_path": "assets/yolov7-w6-nms.trt"
+        }
+    ]
 }
