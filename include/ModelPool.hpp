@@ -218,17 +218,16 @@ public:
     return this->modelBundles.find(modelName) != this->modelBundles.end();
   }
 
-  std::string registerSession(const std::string &modelName, Yolov7trt *model, const std::string &sessionId) {
+  void registerSession(const std::string &modelName, Yolov7trt *model, const std::string &sessionId) {
     std::lock_guard<std::recursive_mutex> lockNow(lock);
     if (this->modelExists(modelName) == false) {
       GST_ERROR("model %s not found", modelName.c_str());
-      return "model not found";
+      return;
     }
     GST_INFO("get a session %s", sessionId.c_str());
     ModelBundle *bundle = this->modelBundles[modelName];
     bundle->sessionHeartbeat[sessionId] = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     bundle->sessionToModel[sessionId] = model;
-    return sessionId;
   }
 
   void heartbeat(const std::string &modelName, std::string sessionId) {

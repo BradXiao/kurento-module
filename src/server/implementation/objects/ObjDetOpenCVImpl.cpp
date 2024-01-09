@@ -245,7 +245,7 @@ bool ObjDetOpenCVImpl::initSession(const std::string &modelName) {
 
   Json::Value modelState;
   if (this->model != nullptr) {
-    this->sessionId = objdet::modelPool.registerSession(this->modelName, this->model, this->sessionId);
+    objdet::modelPool.registerSession(this->modelName, this->model, this->sessionId);
     GST_INFO("model is ready");
     modelState["state"] = "000";
     modelState["defaultModel"] = this->modelName;
