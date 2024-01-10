@@ -46,6 +46,11 @@
                             "name": "isDraw",
                             "doc": "true/false",
                             "type": "boolean"
+                        },
+                        {
+                            "name": "keepBoxes",
+                            "doc": "to keep previous boxes while not inferring",
+                            "type": "boolean"
                         }
                     ]
                 },
@@ -71,7 +76,17 @@
                         }
                     ]
                 },
-
+                {
+                    "name": "setInferringDelay",
+                    "doc": "milliseconds inferring delay between frames",
+                    "params": [
+                        {
+                            "name": "msec",
+                            "doc": "millisecond",
+                            "type": "int"
+                        }
+                    ]
+                },
                 {
                     "name": "initSession",
                     "doc": "",

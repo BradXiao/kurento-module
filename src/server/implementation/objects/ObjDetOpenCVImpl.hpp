@@ -33,13 +33,14 @@ public:
 
   bool setConfidence(float confidence);
   bool setBoxLimit(int boxLimit);
-  bool setIsDraw(bool isDraw);
+  bool setIsDraw(bool isDraw, bool keepBoxes);
   bool startInferring();
   bool stopInferring();
   bool heartbeat(const std::string &sessionId);
   bool initSession();
   bool changeModel(const std::string &modelName);
   bool getModelNames();
+  bool setInferringDelay(const int msec);
   bool destroy();
 
 private:
@@ -47,14 +48,19 @@ private:
   float confiThresh = 0.7;
   int boxLimit = 10;
   bool isDraw = false;
+  bool keepBoxes = false;
+  std::vector<utils::Obj> lastBoxes;
   bool isInferring = false;
   std::string modelName;
   Yolov7trt *model;
   std::time_t sessionCheckTimestamp;
+  int inferringDelayMilli;
+  std::time_t lastInferringTimestampMilli;
   void sendSetParamSetResult(const std::string &param_name, const std::string &state);
   boost::uuids::random_generator uuid_gen;
   void sendErrorMessage(const std::string &state, const std::string &msg);
   bool initSession(const std::string &modelName);
+  void sendBoxes(const std::vector<utils::Obj> &objs);
 };
 
 } // namespace objdet

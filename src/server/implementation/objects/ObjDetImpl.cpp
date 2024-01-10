@@ -37,9 +37,9 @@ void ObjDetImpl::setBoxLimit(int boxLimit) {
   GST_INFO("set box limit %d", boxLimit);
   ObjDetOpenCVImpl::setBoxLimit(boxLimit);
 };
-void ObjDetImpl::setIsDraw(bool isDraw) {
-  GST_INFO("set is draw %s", isDraw ? "true" : "false");
-  ObjDetOpenCVImpl::setIsDraw(isDraw);
+void ObjDetImpl::setIsDraw(bool isDraw, bool keepBoxes) {
+  GST_INFO("set is draw %s and keepBoxes %s", isDraw ? "true" : "false", keepBoxes ? "true" : "false");
+  ObjDetOpenCVImpl::setIsDraw(isDraw, keepBoxes);
 };
 void ObjDetImpl::startInferring() {
   GST_INFO("start inferring");
@@ -66,6 +66,11 @@ void ObjDetImpl::changeModel(const std::string &modelName) {
 void ObjDetImpl::getModelNames() {
   GST_INFO("get model names");
   ObjDetOpenCVImpl::getModelNames();
+}
+
+void ObjDetImpl::setInferringDelay(const int msec) {
+  GST_INFO("set inferring delay %d", msec);
+  ObjDetOpenCVImpl::setInferringDelay(msec);
 }
 
 void ObjDetImpl::destroy() {

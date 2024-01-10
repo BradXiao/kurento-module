@@ -2,6 +2,7 @@
 #include "ObjDetOpenCVImpl.hpp"
 #include "ModelPool.hpp"
 #include <KurentoException.hpp>
+#include <algorithm>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -23,6 +24,11 @@ ObjDetOpenCVImpl::ObjDetOpenCVImpl() {
   GST_DEBUG_CATEGORY_INIT(kurento_obj_det_core, (std::string("ObjDetCore-") + this->sessionId).c_str(), GST_DEBUG_FG_CYAN,
                           "ObjDetCore");
   GST_INFO("session started %s", this->sessionId.c_str());
+  auto now = std::chrono::system_clock::now();
+
+  std::time_t nowMilliSec = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+  this->lastInferringTimestampMilli = nowMilliSec;
+  this->inferringDelayMilli = 0;
 }
 
 /*
@@ -36,6 +42,21 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
     GST_DEBUG("no inferring");
     return;
   }
+  // inferring delay
+  auto now = std::chrono::system_clock::now();
+  if (this->inferringDelayMilli > 0) {
+    std::time_t nowMilliSec = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    if (nowMilliSec - this->lastInferringTimestampMilli < this->inferringDelayMilli) {
+      GST_LOG("skip inferring due to delay inferring");
+      if (this->isDraw && this->keepBoxes && lastBoxes.size() > 0) {
+        utils::drawObjsFixedColor(mat, mat, lastBoxes, false, 0.4, utils::CLASSCOLORS);
+        this->sendBoxes(lastBoxes);
+      }
+      return;
+    }
+    this->lastInferringTimestampMilli = nowMilliSec;
+  }
+
   if (this->sessionId == "") {
     GST_WARNING("session is not init");
     sendErrorMessage("E001", "session is not init");
@@ -48,9 +69,8 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
     this->isInferring = false;
     return;
   }
-
-  std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  if (now - this->sessionCheckTimestamp > 60) {
+  std::time_t nowStamp = std::chrono::system_clock::to_time_t(now);
+  if (nowStamp - this->sessionCheckTimestamp > 60) {
     if (objdet::modelPool.sessionExists(this->modelName, this->sessionId) == false) {
       GST_WARNING("session expired %s", this->sessionId.c_str());
       sendErrorMessage("E003", "session expired");
@@ -59,7 +79,7 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
       return;
     }
 
-    this->sessionCheckTimestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    this->sessionCheckTimestamp = nowStamp;
   }
 
   GST_DEBUG("do inferring");
@@ -90,9 +110,17 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
     GST_DEBUG("draw objs");
     utils::drawObjsFixedColor(mat, mat, objs, false, 0.4, utils::CLASSCOLORS);
   }
+  if (this->keepBoxes == true) {
+    this->lastBoxes.clear();
+    this->lastBoxes = objs;
+  }
 
+  this->sendBoxes(objs);
+}
+
+void ObjDetOpenCVImpl::sendBoxes(const std::vector<utils::Obj> &objs) {
   Json::Value boxes(Json::arrayValue);
-  for (utils::Obj &obj : objs) {
+  for (const utils::Obj &obj : objs) {
     Json::Value box;
     box["x1"] = obj.p1.x;
     box["y1"] = obj.p1.y;
@@ -131,9 +159,11 @@ bool ObjDetOpenCVImpl::setBoxLimit(int boxLimit) {
   return true;
 }
 
-bool ObjDetOpenCVImpl::setIsDraw(bool isDraw) {
-  GST_INFO("set isDraw to %s", isDraw ? "true" : "false");
+bool ObjDetOpenCVImpl::setIsDraw(bool isDraw, bool keepBoxes) {
+  GST_INFO("set isDraw to %s and keepBoxes to %s", isDraw ? "true" : "false", keepBoxes ? "true" : "false");
   this->isDraw = isDraw;
+  this->keepBoxes = keepBoxes;
+  this->lastBoxes.clear();
   this->sendSetParamSetResult("isDraw", "000");
   return true;
 }
@@ -214,6 +244,13 @@ bool ObjDetOpenCVImpl::getModelNames() {
 
   modelNamesEvent event(this->getSharedFromThis(), modelNamesEvent::getName(), utils::jsonToString(modelNamesJson));
   signalmodelNamesEvent(event);
+  return true;
+}
+
+bool ObjDetOpenCVImpl::setInferringDelay(const int msec) {
+  GST_INFO("set inferring delay %d", msec);
+  this->inferringDelayMilli = std::min(std::max(msec, 0), 5000);
+  GST_DEBUG("format inferring delay to %d", this->inferringDelayMilli);
   return true;
 }
 
