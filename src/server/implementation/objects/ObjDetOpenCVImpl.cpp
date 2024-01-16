@@ -119,6 +119,9 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
 }
 
 void ObjDetOpenCVImpl::sendBoxes(const std::vector<utils::Obj> &objs) {
+  if (objs.size() == 0) {
+    return;
+  }
   Json::Value boxes(Json::arrayValue);
   for (const utils::Obj &obj : objs) {
     Json::Value box;
