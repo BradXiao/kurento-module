@@ -49,7 +49,7 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
     if (nowMilliSec - this->lastInferringTimestampMilli < this->inferringDelayMilli) {
       GST_LOG("skip inferring due to delay inferring");
       if (this->isDraw && this->keepBoxes && lastBoxes.size() > 0) {
-        utils::drawObjsFixedColor(mat, mat, lastBoxes, false, 0.4, utils::CLASSCOLORS);
+        utils::drawObjs(mat, mat, lastBoxes, false, 0.4, cv::Scalar(0, 255, 0));
         this->sendBoxes(lastBoxes, mat.size());
       }
       return;
@@ -108,7 +108,7 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
   // draw box
   if (this->isDraw == true && objs.size() > 0) {
     GST_DEBUG("draw objs");
-    utils::drawObjsFixedColor(mat, mat, objs, false, 0.4, utils::CLASSCOLORS);
+    utils::drawObjs(mat, mat, objs, false, 0.4, cv::Scalar(0, 255, 0));
   }
   if (this->keepBoxes == true) {
     this->lastBoxes.clear();

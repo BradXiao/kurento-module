@@ -215,7 +215,8 @@ static void postprocess(const std::vector<void *> &outputBuffer, const Yolov7Inp
  * @param swapBR
  * @param frontScale
  */
-static void drawObjs(const cv::Mat &srcRGBImg, cv::Mat &desRGBImg, const std::vector<Obj> &objs, bool swapBR, float frontScale) {
+static void drawObjs(const cv::Mat &srcRGBImg, cv::Mat &desRGBImg, const std::vector<Obj> &objs, bool swapBR, float frontScale,
+                     const cv::Scalar &color) {
   if (&srcRGBImg != &desRGBImg) {
     desRGBImg = srcRGBImg.clone();
   }
@@ -225,7 +226,11 @@ static void drawObjs(const cv::Mat &srcRGBImg, cv::Mat &desRGBImg, const std::ve
   }
 
   for (const Obj &obj : objs) {
-    cv::rectangle(desRGBImg, obj.p1, obj.p2, cv::Scalar(rand() % 256, rand() % 256, rand() % 256), 2);
+    if (color[0] == -1) {
+      cv::rectangle(desRGBImg, obj.p1, obj.p2, cv::Scalar(rand() % 256, rand() % 256, rand() % 256), 2);
+    } else {
+      cv::rectangle(desRGBImg, obj.p1, obj.p2, color, 2);
+    }
 
     std::stringstream ss;
     ss << obj.name << "-" << std::fixed << std::setprecision(2) << obj.confi;
@@ -276,7 +281,7 @@ static void drawObjsFixedColor(const cv::Mat &srcRGBImg, cv::Mat &desRGBImg, con
  * @param objs
  */
 static void drawObjs(const cv::Mat &srcRGBImg, cv::Mat &desRGBImg, const std::vector<Obj> &objs) {
-  drawObjs(srcRGBImg, desRGBImg, objs, false, 0.4);
+  drawObjs(srcRGBImg, desRGBImg, objs, false, 0.4, cv::Scalar(-1, -1, -1));
 };
 
 /**
