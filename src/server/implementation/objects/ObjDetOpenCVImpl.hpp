@@ -60,7 +60,7 @@ private:
   boost::uuids::random_generator uuid_gen;
   void sendErrorMessage(const std::string &state, const std::string &msg);
   bool initSession(const std::string &modelName);
-  void sendBoxes(const std::vector<utils::Obj> &objs);
+  void sendBoxes(const std::vector<utils::Obj> &objs, const cv::Size &size);
 };
 
 } // namespace objdet

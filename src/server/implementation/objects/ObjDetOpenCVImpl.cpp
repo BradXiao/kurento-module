@@ -50,7 +50,7 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
       GST_LOG("skip inferring due to delay inferring");
       if (this->isDraw && this->keepBoxes && lastBoxes.size() > 0) {
         utils::drawObjsFixedColor(mat, mat, lastBoxes, false, 0.4, utils::CLASSCOLORS);
-        this->sendBoxes(lastBoxes);
+        this->sendBoxes(lastBoxes, mat.size());
       }
       return;
     }
@@ -115,10 +115,10 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
     this->lastBoxes = objs;
   }
 
-  this->sendBoxes(objs);
+  this->sendBoxes(objs, mat.size());
 }
 
-void ObjDetOpenCVImpl::sendBoxes(const std::vector<utils::Obj> &objs) {
+void ObjDetOpenCVImpl::sendBoxes(const std::vector<utils::Obj> &objs, const cv::Size &size) {
   if (objs.size() == 0) {
     return;
   }
@@ -129,10 +129,10 @@ void ObjDetOpenCVImpl::sendBoxes(const std::vector<utils::Obj> &objs) {
     box["y1"] = obj.p1.y;
     box["x2"] = obj.p2.x;
     box["y2"] = obj.p2.y;
-    box["x1r"] = obj.p1.x/640.;
-    box["y1r"] = obj.p1.y/640.;
-    box["x2r"] = obj.p2.x/640.;
-    box["y2r"] = obj.p2.y/640.;
+    box["x1r"] = obj.p1.x / static_cast<float>(size.width);
+    box["y1r"] = obj.p1.y / static_cast<float>(size.height);
+    box["x2r"] = obj.p2.x / static_cast<float>(size.width);
+    box["y2r"] = obj.p2.y / static_cast<float>(size.height);
     box["name"] = obj.name;
     box["confi"] = obj.confi;
     boxes.append(box);
