@@ -129,6 +129,10 @@ void ObjDetOpenCVImpl::sendBoxes(const std::vector<utils::Obj> &objs) {
     box["y1"] = obj.p1.y;
     box["x2"] = obj.p2.x;
     box["y2"] = obj.p2.y;
+    box["x1r"] = obj.p1.x/640.;
+    box["y1r"] = obj.p1.y/640.;
+    box["x2r"] = obj.p2.x/640.;
+    box["y2r"] = obj.p2.y/640.;
     box["name"] = obj.name;
     box["confi"] = obj.confi;
     boxes.append(box);
