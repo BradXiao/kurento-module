@@ -47,7 +47,7 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
 
   // inferring delay
 
-  if (this->checkDelay(mat,now) == false) {
+  if (this->checkDelay(mat, now) == false) {
     return;
   }
 
@@ -76,6 +76,10 @@ void ObjDetOpenCVImpl::process(cv::Mat &mat) {
   this->drawObjects(mat, objs);
 
   this->sendBoxes(objs, mat.size());
+
+  if (this->isDrawing && this->keepBoxes == true) {
+    this->lastBoxes = objs;
+  }
 }
 
 bool ObjDetOpenCVImpl::setConfidence(float confidence) {
@@ -305,11 +309,6 @@ inline void ObjDetOpenCVImpl::filterByBoxLimit(std::vector<utils::Obj> &objs) {
 }
 
 inline void ObjDetOpenCVImpl::sendBoxes(const std::vector<utils::Obj> &objs, const cv::Size &size) {
-  if (this->isDrawing && this->keepBoxes == true) {
-    this->lastBoxes.clear();
-    this->lastBoxes = objs;
-  }
-
   if (objs.size() == 0) {
     return;
   }
