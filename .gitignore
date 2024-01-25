@@ -21,3 +21,5 @@ obj-x86_64-linux-gnu/
 .vscode
 *.trt
 .clang-format
+
+release
