@@ -28,11 +28,13 @@ ModelPool::ModelPool() {
 
   GST_DEBUG_CATEGORY_INIT(obj_det_model_pool, "ObjDetModelPool", GST_DEBUG_BG_YELLOW, "ObjDetModelPool");
   std::lock_guard<std::recursive_mutex> lockNow(this->lock);
-  GST_DEBUG("init");
+  GST_INFO("init");
 
+  GST_INFO("read config");
   Json::Value config;
   this->readConfig(config);
 
+  GST_INFO("init models");
   this->initModels(config);
 }
 
@@ -78,23 +80,25 @@ Yolov7trt *ModelPool::getModel(const std::string &modelName) {
     uintptr_t address = reinterpret_cast<uintptr_t>(model);
     if (bundle->isUsed[address] == false) {
       bundle->isUsed[address] = true;
-      GST_INFO("get a model successfully");
+      GST_DEBUG("get a model successfully");
       return model;
     }
   }
 
-  // take timeout model
-  GST_DEBUG("try get a timeout model");
+  //// check if there is a timeout session to get the model
+  GST_INFO("try get a timeout model");
   bool isModelReleased = this->updateSession(modelName);
   if (isModelReleased) {
     return this->getModel(modelName);
   }
   GST_WARNING("try to get %s model but no model is available", modelName.c_str());
+  GST_WARNING("you could try to increase the number of models if config file");
   return nullptr;
 }
 
 std::string ModelPool::getDefaultModelName() {
   std::lock_guard<std::recursive_mutex> lockNow(this->lock);
+  GST_DEBUG("get default model name %s", this->defaultModelName.c_str());
   return this->defaultModelName;
 }
 
@@ -110,6 +114,7 @@ void ModelPool::returnModel(const std::string &modelName, Yolov7trt *model, cons
   bundle->isUsed[address] = false;
   bundle->sessionHeartbeat.erase(sessionId);
   bundle->sessionToModel.erase(sessionId);
+  GST_DEBUG("destroy session %s, release a model %s", sessionId.c_str(), modelName.c_str());
 }
 
 void ModelPool::getModelNames(std::vector<std::string> &names) {
@@ -117,6 +122,7 @@ void ModelPool::getModelNames(std::vector<std::string> &names) {
   std::lock_guard<std::recursive_mutex> lockNow(this->lock);
   names.clear();
   for (auto &[modelName, _] : this->modelBundles) {
+    GST_DEBUG("model name %s", modelName.c_str());
     names.push_back(modelName);
   }
 }
@@ -133,7 +139,7 @@ void ModelPool::registerSession(const std::string &modelName, Yolov7trt *model, 
     GST_ERROR("model %s not found", modelName.c_str());
     return;
   }
-  GST_INFO("get a session %s", sessionId.c_str());
+  GST_INFO("register a session %s with model %s", sessionId.c_str(), modelName.c_str());
   ModelBundle *bundle = this->modelBundles[modelName];
   bundle->sessionHeartbeat[sessionId] = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   bundle->sessionToModel[sessionId] = model;
@@ -148,13 +154,14 @@ void ModelPool::heartbeat(const std::string &modelName, std::string sessionId) {
   }
   ModelBundle *bundle = this->modelBundles[modelName];
   if (bundle->sessionHeartbeat.find(sessionId) == bundle->sessionHeartbeat.end()) {
+    GST_WARNING("heartbeat on destroyed session %s", sessionId.c_str());
     return;
   }
   bundle->sessionHeartbeat[sessionId] = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 }
 
 bool ModelPool::sessionExists(const std::string &modelName, std::string sessionId) {
-  GST_DEBUG("check session exists %s", sessionId.c_str());
+  GST_INFO("check session exists %s", sessionId.c_str());
   std::lock_guard<std::recursive_mutex> lockNow(this->lock);
   if (this->modelExists(modelName) == false) {
     GST_ERROR("model %s not found", modelName.c_str());
@@ -177,14 +184,14 @@ ModelPool::~ModelPool() {
 // ================================================================================================================
 
 void ModelPool::readConfig(Json::Value &config) {
-  // read config
+  //// check parameter
   GST_INFO("check config file");
   const char *path = std::getenv("OBJDET_CONFIG");
   if (path == nullptr) {
     GST_ERROR("OBJDET_CONFIG is not specified");
     throw std::runtime_error("environment variable OBJDET_CONFIG is not specified");
   }
-
+  //// check file
   if (fs::exists(path) == false) {
     GST_ERROR("object detection config file not found: %s", path);
     throw std::runtime_error(std::string("object detection config file not found: ") + path);
@@ -196,6 +203,7 @@ void ModelPool::readConfig(Json::Value &config) {
     throw std::runtime_error(std::string("object detection config file cannot load: ") + path);
   }
 
+  //// deserialize
   GST_INFO("read config file");
   Json::Reader reader;
   if (reader.parse(fileStream, config) == false) {
@@ -208,17 +216,17 @@ void ModelPool::readConfig(Json::Value &config) {
 }
 
 void ModelPool::initModels(const Json::Value &config) {
-
+  //// set device id
   int deviceId = std::max(config["device_id"].asInt(), 0);
   cudaSetDevice(deviceId);
   GST_INFO("device id = %d", deviceId);
 
-  // init models
   this->defaultModelName = config["default_model_name"].asString();
   int totalModelNum = static_cast<int>(config["models"].size());
+
   for (int i = 0; i < totalModelNum; i++) {
+    //// valid parameters
     Json::Value modelParam = config["models"][i];
-    // check model enabled
     if (modelParam["enabled"].asBool() == false) {
       GST_INFO("Skip disabled model %s", modelParam["name"].asString().c_str());
       continue;
@@ -232,14 +240,15 @@ void ModelPool::initModels(const Json::Value &config) {
     int maxModelLimit = std::max(modelParam["max_model_limit"].asInt(), 1);
     GST_INFO("Start init %d %s models", maxModelLimit, modelParam["name"].asString().c_str());
 
-    // check model file
+    //// check model file
     std::string modelPath = modelParam["model_abs_path"].asString();
     GST_INFO("check model file");
     if (fs::exists(modelPath) == false) {
       GST_ERROR("object detection model not found: %s", modelPath.c_str());
       throw std::runtime_error(std::string("object detection model not found: ") + modelPath);
     }
-    // load models
+
+    //// load models
     ModelBundle *bundle = new ModelBundle();
     for (int i = 0; i < maxModelLimit; i++) {
       this->checkVRAM(deviceId, 500000000);
@@ -261,6 +270,7 @@ void ModelPool::initModels(const Json::Value &config) {
     this->modelBundles[modelParam["name"].asString()] = bundle;
   }
 
+  //// set default model
   if (this->modelBundles.find(this->defaultModelName) == this->modelBundles.end()) {
     GST_ERROR("default model name not found (%s)", this->defaultModelName.c_str());
     throw std::runtime_error("default model name not found");

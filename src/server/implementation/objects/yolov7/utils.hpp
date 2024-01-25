@@ -8,7 +8,7 @@
 
 namespace utils {
 
-/// @brief Model input or output binding info
+/// @brief tensorrt binding info
 struct BindingInfo {
   int dataSize;
   size_t size = 1;
@@ -17,14 +17,18 @@ struct BindingInfo {
   bool isInput;
 };
 
+/// @brief yolov7 input
 struct Yolov7Input {
   cv::Mat mat;
   cv::Size inputSize;
+
+  //// used for coordinates conversion
   float ratio;
   int dw;
   int dh;
 };
 
+/// @brief object struct
 struct Obj {
   cv::Point p1;
   cv::Point p2;
@@ -35,7 +39,7 @@ struct Obj {
   bool operator<(const Obj &other) const { return confi > other.confi; }
 };
 
-///@brief Struct contains binding info and memory locations
+/// @brief binding info and memory allocations
 struct EngineIO {
   int bindingCount;
   utils::BindingInfo inputBinding;
@@ -46,12 +50,7 @@ struct EngineIO {
   std::vector<void *> combinedBuffersGPU;
 };
 
-/**
- * @brief Get the data type size for memory allocation
- *
- * @param dataType
- * @return int
- */
+/// @brief get the data type size for memory allocation
 static inline int getDataTypeSize(const nvinfer1::DataType &dataType) {
   switch (dataType) {
   case nvinfer1::DataType::kFLOAT:
@@ -63,13 +62,7 @@ static inline int getDataTypeSize(const nvinfer1::DataType &dataType) {
   }
 };
 
-/**
- * @brief Get the binding info of a specific layer
- *
- * @param engine
- * @param index
- * @return BindingInfo
- */
+/// @brief get the binding info of a specific layer
 static inline void getBindingInfo(BindingInfo &info, const nvinfer1::ICudaEngine *engine, int index) {
   std::string name = engine->getBindingName(index);          // TODO: deprecated
   nvinfer1::Dims dims = engine->getBindingDimensions(index); // TODO: deprecated
@@ -86,12 +79,12 @@ static inline void getBindingInfo(BindingInfo &info, const nvinfer1::ICudaEngine
 };
 
 /**
- * @brief Image preprocess (letterbox and normalization)
+ * @brief image preprocess (letterbox and normalization)
  *
- * @param rgbImg
- * @param input
+ * @param rgbImg RGB or RGBA image
+ * @param input Yolov7Input Struct
  * @param wh target width/height
- * @param padColor
+ * @param padColor padding color
  */
 static inline void preprocess(const cv::Mat &rgbImg, Yolov7Input &input, int wh, int padColor) {
 
@@ -132,19 +125,20 @@ static inline void preprocess(const cv::Mat &rgbImg, Yolov7Input &input, int wh,
 };
 
 /**
- * @brief Image preprocess (letterbox and normalization)
+ * @brief image preprocess (letterbox and normalization)
  *
- * @param rgbImg
- * @param input
+ * @param rgbImg RGB or RGBA image
+ * @param input Yolov7Input Struct
  */
 static inline void preprocess(const cv::Mat &rgbImg, Yolov7Input &input) { preprocess(rgbImg, input, 640, 114); };
 
 /**
- * @brief Model output postprocess (convert to Obj class)
+ * @brief model output postprocess (convert to Obj class)
  *
- * @param outputBuffer
- * @param input
- * @param objs
+ * @param outputBuffer the output from the model
+ * @param input Yolov7Input
+ * @param objs detected objects
+ * @param CLASSNAMES object names
  */
 static inline void postprocess(const std::vector<void *> &outputBuffer, const Yolov7Input &input, std::vector<Obj> &objs,
                                const std::vector<std::string> &CLASSNAMES) {
@@ -172,13 +166,14 @@ static inline void postprocess(const std::vector<void *> &outputBuffer, const Yo
 };
 
 /**
- * @brief Draw boxes
+ * @brief draw objects
  *
- * @param srcRGBImg
- * @param desRGBImg
- * @param objs
- * @param swapBR
- * @param frontScale
+ * @param srcRGBImg source iamge
+ * @param desRGBImg destination image
+ * @param objs detected objects
+ * @param swapBR to swap the blue red channel
+ * @param frontScale text scale
+ * @param color retangle color
  */
 static inline void drawObjs(const cv::Mat &srcRGBImg, cv::Mat &desRGBImg, const std::vector<Obj> &objs, bool swapBR, float frontScale,
                             const cv::Scalar &color) {
@@ -211,6 +206,16 @@ static inline void drawObjs(const cv::Mat &srcRGBImg, cv::Mat &desRGBImg, const 
   }
 };
 
+/**
+ * @brief draw objects
+ *
+ * @param srcRGBImg source iamge
+ * @param desRGBImg destination image
+ * @param objs detected objects
+ * @param swapBR to swap the blue red channel
+ * @param frontScale text scale
+ * @param colors a color-object name map
+ */
 static inline void drawObjsFixedColor(const cv::Mat &srcRGBImg, cv::Mat &desRGBImg, const std::vector<Obj> &objs, bool swapBR,
                                       float frontScale, const std::vector<cv::Scalar> &colors) {
   if (&srcRGBImg != &desRGBImg) {
@@ -239,22 +244,17 @@ static inline void drawObjsFixedColor(const cv::Mat &srcRGBImg, cv::Mat &desRGBI
 }
 
 /**
- * @brief Draw boxes
+ * @brief draw objects
  *
- * @param srcRGBImg
- * @param desRGBImg
- * @param objs
+ * @param srcRGBImg source iamge
+ * @param desRGBImg destination image
+ * @param objs detected objects
  */
 static inline void drawObjs(const cv::Mat &srcRGBImg, cv::Mat &desRGBImg, const std::vector<Obj> &objs) {
   drawObjs(srcRGBImg, desRGBImg, objs, false, 0.4, cv::Scalar(-1, -1, -1));
 };
 
-/**
- * @brief Convert json value to string
- *
- * @param input
- * @return std::string
- */
+/// @brief serialize JSON string
 static inline std::string jsonToString(Json::Value &input) {
   Json::FastWriter writer;
   return writer.write(input);

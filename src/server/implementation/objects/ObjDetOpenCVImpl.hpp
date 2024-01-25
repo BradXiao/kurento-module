@@ -34,32 +34,73 @@ public:
   sigc::signal<void, modelNamesEvent> signalmodelNamesEvent;
   sigc::signal<void, modelChanged> signalmodelChanged;
 
+  /// @brief set confidence for filter objects
   bool setConfidence(float confidence);
+
+  /// @brief set the maximum object numbers to output
   bool setBoxLimit(int boxLimit);
+
+  /// @brief draw objects on image
   bool setDrawing(bool isDrawing, bool keepBoxes);
+
+  /// @brief start inferring
   bool startInferring();
+
+  /// @brief stop inferring
   bool stopInferring();
+
+  /// @brief heartbeat to prevent being destroyed
   bool heartbeat();
+
   bool initSession();
+
+  /// @brief change model
   bool changeModel(const std::string &modelName);
+
+  /// @brief get model names
   bool getModelNames();
+
+  /// @brief set inferring delay between frames, to reduce CPU/GPU usage
   bool setInferringDelay(const int msec);
   bool destroy();
 
 private:
+  /// @brief session id
   std::string sessionId;
+
+  /// @brief selected model name
   std::string modelName;
+
+  /// @brief model object
   Yolov7trt *model;
+
+  /// @brief maximum output objects
   int boxLimit = 10;
+
+  /// @brief inferring delay in millisecond between frames
   int inferringDelayMsec;
+
+  /// @brief confidence threshold
   float confiThresh = 0.7;
+
+  /// @brief to draw objects on image or not
   bool isDrawing = false;
+
+  /// @brief to keep drawn boxes during inferring delay period
   bool keepBoxes = false;
+
+  /// @brief inferring
   bool isInferring = false;
 
   boost::uuids::random_generator uuidGenerator;
+
+  /// @brief store objects used during inferring delay period
   std::vector<utils::Obj> lastBoxes;
+
+  /// @brief last session check timestamp
   std::time_t sessCheckTimestamp;
+
+  /// @brief last inferring timestamp in millisecond
   std::time_t lastInferringTimestampMs;
 
   inline bool checkDelay(cv::Mat &mat, const std::chrono::system_clock::time_point &now);
