@@ -64,9 +64,9 @@ Yolov7trt::Yolov7trt(const std::string &modelPath, const int &device, std::strin
   GST_INFO("warmup");
   for (int i = 0; i < 10; i++) {
     GST_DEBUG("warmup %d", i);
-    cv::Mat dummpyImg(640, 640, CV_8UC3, cv::Scalar(rand() % 256, rand() % 256, rand() % 256));
+    cv::Mat dummyImg(640, 640, CV_8UC3, cv::Scalar(rand() % 256, rand() % 256, rand() % 256));
     std::vector<utils::Obj> dummyObjs;
-    this->infer(dummpyImg, dummyObjs);
+    this->infer(dummyImg, dummyObjs);
   }
 };
 

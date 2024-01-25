@@ -39,11 +39,11 @@
                     ]
                 },
                 {
-                    "name": "setIsDraw",
+                    "name": "setDrawing",
                     "doc": "Set whether to draw box or not",
                     "params": [
                         {
-                            "name": "isDraw",
+                            "name": "isDrawing",
                             "doc": "true/false",
                             "type": "boolean"
                         },
@@ -57,13 +57,7 @@
                 {
                     "name": "heartbeat",
                     "doc": "Heartbeat for keeping model active",
-                    "params": [
-                        {
-                            "name": "sessionId",
-                            "doc": "",
-                            "type": "String"
-                        }
-                    ]
+                    "params": []
                 },
                 {
                     "name": "changeModel",

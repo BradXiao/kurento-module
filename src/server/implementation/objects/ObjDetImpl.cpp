@@ -37,9 +37,9 @@ void ObjDetImpl::setBoxLimit(int boxLimit) {
   GST_INFO("set box limit %d", boxLimit);
   ObjDetOpenCVImpl::setBoxLimit(boxLimit);
 };
-void ObjDetImpl::setIsDraw(bool isDraw, bool keepBoxes) {
-  GST_INFO("set is draw %s and keepBoxes %s", isDraw ? "true" : "false", keepBoxes ? "true" : "false");
-  ObjDetOpenCVImpl::setIsDraw(isDraw, keepBoxes);
+void ObjDetImpl::setDrawing(bool isDrawing, bool keepBoxes) {
+  GST_INFO("set is draw %s and keepBoxes %s", isDrawing ? "true" : "false", keepBoxes ? "true" : "false");
+  ObjDetOpenCVImpl::setDrawing(isDrawing, keepBoxes);
 };
 void ObjDetImpl::startInferring() {
   GST_INFO("start inferring");
@@ -49,9 +49,9 @@ void ObjDetImpl::stopInferring() {
   GST_INFO("stop inferring");
   ObjDetOpenCVImpl::stopInferring();
 };
-void ObjDetImpl::heartbeat(const std::string &sessionId) {
-  GST_INFO("heartbeat %s", sessionId.c_str());
-  ObjDetOpenCVImpl::heartbeat(sessionId);
+void ObjDetImpl::heartbeat() {
+  GST_INFO("heartbeat is called");
+  ObjDetOpenCVImpl::heartbeat();
 };
 void ObjDetImpl::initSession() {
   GST_INFO("check model state");

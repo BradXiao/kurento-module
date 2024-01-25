@@ -176,7 +176,7 @@ static void preprocess(const cv::Mat &rgbImg, Yolov7Input &input, int wh, int pa
 static void preprocess(const cv::Mat &rgbImg, Yolov7Input &input) { preprocess(rgbImg, input, 640, 114); };
 
 /**
- * @brief Model output postproce (convert to Obj class)
+ * @brief Model output postprocess (convert to Obj class)
  *
  * @param outputBuffer
  * @param input

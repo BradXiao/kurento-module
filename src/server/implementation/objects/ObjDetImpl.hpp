@@ -46,10 +46,10 @@ public:
 
   void setConfidence(float confidence);
   void setBoxLimit(int boxLimit);
-  void setIsDraw(bool isDraw, bool keepBoxes);
+  void setDrawing(bool isDrawing, bool keepBoxes);
   void startInferring();
   void stopInferring();
-  void heartbeat(const std::string &sessionId);
+  void heartbeat();
   void initSession();
   void changeModel(const std::string &modelName);
   void getModelNames();

@@ -4,6 +4,7 @@
 #define __OBJ_DET_OPENCV_IMPL_HPP__
 #include "yolov7.hpp"
 
+#include "ModelPool.hpp"
 #include "ObjDet.hpp"
 #include <EventHandler.hpp>
 #include <OpenCVProcess.hpp>
@@ -14,6 +15,8 @@
 namespace kurento {
 namespace module {
 namespace objdet {
+
+extern ModelPool modelPool;
 
 class ObjDetOpenCVImpl : public virtual OpenCVProcess {
 
@@ -33,10 +36,10 @@ public:
 
   bool setConfidence(float confidence);
   bool setBoxLimit(int boxLimit);
-  bool setIsDraw(bool isDraw, bool keepBoxes);
+  bool setDrawing(bool isDrawing, bool keepBoxes);
   bool startInferring();
   bool stopInferring();
-  bool heartbeat(const std::string &sessionId);
+  bool heartbeat();
   bool initSession();
   bool changeModel(const std::string &modelName);
   bool getModelNames();
@@ -45,22 +48,32 @@ public:
 
 private:
   std::string sessionId;
-  float confiThresh = 0.7;
-  int boxLimit = 10;
-  bool isDraw = false;
-  bool keepBoxes = false;
-  std::vector<utils::Obj> lastBoxes;
-  bool isInferring = false;
   std::string modelName;
   Yolov7trt *model;
-  std::time_t sessionCheckTimestamp;
-  int inferringDelayMilli;
-  std::time_t lastInferringTimestampMilli;
+  int boxLimit = 10;
+  int inferringDelayMsec;
+  float confiThresh = 0.7;
+  bool isDrawing = false;
+  bool keepBoxes = false;
+  bool isInferring = false;
+
+  boost::uuids::random_generator uuidGenerator;
+  std::vector<utils::Obj> lastBoxes;
+  std::time_t sessCheckTimestamp;
+  std::time_t lastInferringTimestampMs;
+
+  inline bool checkDelay(cv::Mat &mat,const std::chrono::system_clock::time_point &now);
+  inline bool checkSession();
+  inline bool checkModel();
+  inline bool checkSessionIsValid(const std::chrono::system_clock::time_point &now);
+  inline void filterByConfidence(std::vector<utils::Obj> &objs);
+  inline void filterByBoxLimit(std::vector<utils::Obj> &objs);
+  inline void drawObjects(cv::Mat &mat,const std::vector<utils::Obj> &objs);
+  inline void sendBoxes(const std::vector<utils::Obj> &objs, const cv::Size &size);
+
   void sendSetParamSetResult(const std::string &param_name, const std::string &state);
-  boost::uuids::random_generator uuid_gen;
   void sendErrorMessage(const std::string &state, const std::string &msg);
   bool initSession(const std::string &modelName);
-  void sendBoxes(const std::vector<utils::Obj> &objs, const cv::Size &size);
 };
 
 } // namespace objdet
