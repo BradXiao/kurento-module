@@ -2,7 +2,7 @@
 
 This is AI (object detection) module for KMS.
 
-![](architecture.png | width=300)
+![](architecture.png|width=500)
 
 ## Pre-built binaries
 
