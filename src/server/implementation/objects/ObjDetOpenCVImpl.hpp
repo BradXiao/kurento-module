@@ -62,13 +62,13 @@ private:
   std::time_t sessCheckTimestamp;
   std::time_t lastInferringTimestampMs;
 
-  inline bool checkDelay(cv::Mat &mat,const std::chrono::system_clock::time_point &now);
+  inline bool checkDelay(cv::Mat &mat, const std::chrono::system_clock::time_point &now);
   inline bool checkSession();
   inline bool checkModel();
   inline bool checkSessionIsValid(const std::chrono::system_clock::time_point &now);
   inline void filterByConfidence(std::vector<utils::Obj> &objs);
   inline void filterByBoxLimit(std::vector<utils::Obj> &objs);
-  inline void drawObjects(cv::Mat &mat,const std::vector<utils::Obj> &objs);
+  inline void drawObjects(cv::Mat &mat, const std::vector<utils::Obj> &objs);
   inline void sendBoxes(const std::vector<utils::Obj> &objs, const cv::Size &size);
 
   void sendSetParamSetResult(const std::string &param_name, const std::string &state);
