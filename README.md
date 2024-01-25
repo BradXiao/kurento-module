@@ -2,7 +2,7 @@
 
 This is AI (object detection) module for KMS.
 
-![](architecture.png|width=500)
+<img src="https://raw.githubusercontent.com/BradXiao/kurento-module/main/architecture.png" width="600">
 
 ## Pre-built binaries
 
