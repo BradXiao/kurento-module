@@ -46,6 +46,8 @@ private:
   std::recursive_mutex lock;
   std::string defaultModelName;
 
+  void readConfig(Json::Value &config);
+  void initModels(const Json::Value &config);
   bool updateSession(const std::string &modelName);
   void checkVRAM(const int deviceId, const size_t minBytes);
 };

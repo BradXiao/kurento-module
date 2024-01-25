@@ -30,91 +30,10 @@ ModelPool::ModelPool() {
   std::lock_guard<std::recursive_mutex> lockNow(this->lock);
   GST_DEBUG("init");
 
-  // read config
-  GST_INFO("check config file");
-  const char *path = std::getenv("OBJDET_CONFIG");
-  if (path == nullptr) {
-    GST_ERROR("OBJDET_CONFIG is not specified");
-    throw std::runtime_error("environment variable OBJDET_CONFIG is not specified");
-  }
-
-  if (fs::exists(path) == false) {
-    GST_ERROR("object detection config file not found: %s", path);
-    throw std::runtime_error(std::string("object detection config file not found: ") + path);
-  }
-
-  std::ifstream fileStream(path, std::ifstream::binary);
-  if (fileStream.good() == false) {
-    GST_ERROR("object detection config file cannot load: %s", path);
-    throw std::runtime_error(std::string("object detection config file cannot load: ") + path);
-  }
-
-  GST_INFO("read config file");
   Json::Value config;
-  Json::Reader reader;
-  if (reader.parse(fileStream, config) == false) {
-    GST_ERROR("object detection config file JSON format error: %s", path);
-    throw std::runtime_error(std::string("object detection config file JSON format error: ") + path);
-  }
+  this->readConfig(config);
 
-  GST_INFO("finish loading config file");
-  GST_INFO("%s", utils::jsonToString(config).c_str());
-
-  int deviceId = std::max(config["device_id"].asInt(), 0);
-  cudaSetDevice(deviceId);
-  GST_INFO("device id = %d", deviceId);
-  // init models
-  this->defaultModelName = config["default_model_name"].asString();
-  int totalModelNum = static_cast<int>(config["models"].size());
-  for (int i = 0; i < totalModelNum; i++) {
-    Json::Value modelParam = config["models"][i];
-    // check model enabled
-    if (modelParam["enabled"].asBool() == false) {
-      GST_INFO("Skip disabled model %s", modelParam["name"].asString().c_str());
-      continue;
-    }
-    if (modelParam["name"].asString() == "default") {
-      GST_ERROR("model name 'default' is a pre-defined keyword");
-      throw std::runtime_error("model name 'default' is a pre-defined keyword");
-      break;
-    }
-
-    int maxModelLimit = std::max(modelParam["max_model_limit"].asInt(), 1);
-    GST_INFO("Start init %d %s models", maxModelLimit, modelParam["name"].asString().c_str());
-
-    // check model file
-    std::string modelPath = modelParam["model_abs_path"].asString();
-    GST_INFO("check model file");
-    if (fs::exists(modelPath) == false) {
-      GST_ERROR("object detection model not found: %s", modelPath.c_str());
-      throw std::runtime_error(std::string("object detection model not found: ") + modelPath);
-    }
-    // load models
-    ModelBundle *bundle = new ModelBundle();
-    for (int i = 0; i < maxModelLimit; i++) {
-      this->checkVRAM(deviceId, 500000000);
-      GST_INFO("Init %d/%d %s model", i + 1, maxModelLimit, modelParam["name"].asString().c_str());
-      Yolov7trt *md;
-      try {
-        md = new Yolov7trt(modelPath, deviceId, std::to_string(i));
-        GST_INFO("Finish init %d/%d %s model", i + 1, maxModelLimit, modelParam["name"].asString().c_str());
-      } catch (const std::exception &e) {
-        GST_ERROR("Error init %d/%d %s model", i + 1, maxModelLimit, modelParam["name"].asString().c_str());
-        continue;
-      }
-      bundle->models.push_back(md);
-      uintptr_t modelAddress = reinterpret_cast<uintptr_t>(md);
-      bundle->isUsed[modelAddress] = false;
-      GST_INFO("Added %d/%d %s model", i + 1, maxModelLimit, modelParam["name"].asString().c_str());
-    }
-
-    this->modelBundles[modelParam["name"].asString()] = bundle;
-  }
-
-  if (this->modelBundles.find(this->defaultModelName) == this->modelBundles.end()) {
-    GST_ERROR("default model name not found (%s)", this->defaultModelName.c_str());
-    throw std::runtime_error("default model name not found");
-  }
+  this->initModels(config);
 }
 
 int ModelPool::getAvailableCount(const std::string &modelName) {
@@ -250,6 +169,101 @@ ModelPool::~ModelPool() {
   GST_INFO("destroy models");
   for (auto &[_, modelBundle] : this->modelBundles) {
     delete modelBundle;
+  }
+}
+
+// ================================================================================================================
+// private
+// ================================================================================================================
+
+void ModelPool::readConfig(Json::Value &config) {
+  // read config
+  GST_INFO("check config file");
+  const char *path = std::getenv("OBJDET_CONFIG");
+  if (path == nullptr) {
+    GST_ERROR("OBJDET_CONFIG is not specified");
+    throw std::runtime_error("environment variable OBJDET_CONFIG is not specified");
+  }
+
+  if (fs::exists(path) == false) {
+    GST_ERROR("object detection config file not found: %s", path);
+    throw std::runtime_error(std::string("object detection config file not found: ") + path);
+  }
+
+  std::ifstream fileStream(path, std::ifstream::binary);
+  if (fileStream.good() == false) {
+    GST_ERROR("object detection config file cannot load: %s", path);
+    throw std::runtime_error(std::string("object detection config file cannot load: ") + path);
+  }
+
+  GST_INFO("read config file");
+  Json::Reader reader;
+  if (reader.parse(fileStream, config) == false) {
+    GST_ERROR("object detection config file JSON format error: %s", path);
+    throw std::runtime_error(std::string("object detection config file JSON format error: ") + path);
+  }
+
+  GST_INFO("finish loading config file");
+  GST_INFO("%s", utils::jsonToString(config).c_str());
+}
+
+void ModelPool::initModels(const Json::Value &config) {
+
+  int deviceId = std::max(config["device_id"].asInt(), 0);
+  cudaSetDevice(deviceId);
+  GST_INFO("device id = %d", deviceId);
+
+  // init models
+  this->defaultModelName = config["default_model_name"].asString();
+  int totalModelNum = static_cast<int>(config["models"].size());
+  for (int i = 0; i < totalModelNum; i++) {
+    Json::Value modelParam = config["models"][i];
+    // check model enabled
+    if (modelParam["enabled"].asBool() == false) {
+      GST_INFO("Skip disabled model %s", modelParam["name"].asString().c_str());
+      continue;
+    }
+    if (modelParam["name"].asString() == "default") {
+      GST_ERROR("model name 'default' is a pre-defined keyword");
+      throw std::runtime_error("model name 'default' is a pre-defined keyword");
+      break;
+    }
+
+    int maxModelLimit = std::max(modelParam["max_model_limit"].asInt(), 1);
+    GST_INFO("Start init %d %s models", maxModelLimit, modelParam["name"].asString().c_str());
+
+    // check model file
+    std::string modelPath = modelParam["model_abs_path"].asString();
+    GST_INFO("check model file");
+    if (fs::exists(modelPath) == false) {
+      GST_ERROR("object detection model not found: %s", modelPath.c_str());
+      throw std::runtime_error(std::string("object detection model not found: ") + modelPath);
+    }
+    // load models
+    ModelBundle *bundle = new ModelBundle();
+    for (int i = 0; i < maxModelLimit; i++) {
+      this->checkVRAM(deviceId, 500000000);
+      GST_INFO("Init %d/%d %s model", i + 1, maxModelLimit, modelParam["name"].asString().c_str());
+      Yolov7trt *md;
+      try {
+        md = new Yolov7trt(modelPath, deviceId, std::to_string(i));
+        GST_INFO("Finish init %d/%d %s model", i + 1, maxModelLimit, modelParam["name"].asString().c_str());
+      } catch (const std::exception &e) {
+        GST_ERROR("Error init %d/%d %s model", i + 1, maxModelLimit, modelParam["name"].asString().c_str());
+        continue;
+      }
+      bundle->models.push_back(md);
+      uintptr_t modelAddress = reinterpret_cast<uintptr_t>(md);
+      bundle->isUsed[modelAddress] = false;
+      GST_INFO("Added %d/%d %s model", i + 1, maxModelLimit, modelParam["name"].asString().c_str());
+    }
+
+    this->modelBundles[modelParam["name"].asString()] = bundle;
+  }
+
+  if (this->modelBundles.find(this->defaultModelName) == this->modelBundles.end()) {
+    GST_ERROR("default model name not found (%s)", this->defaultModelName.c_str());
+    throw std::runtime_error("default model name not found");
   }
 }
 
