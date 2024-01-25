@@ -45,7 +45,7 @@ public:
     const char *path = std::getenv("OBJDET_CONFIG");
     if (path == nullptr) {
       GST_ERROR("OBJDET_CONFIG is not specified");
-      std::runtime_error("environment variable OBJDET_CONFIG is not specified");
+      throw std::runtime_error("environment variable OBJDET_CONFIG is not specified");
     }
 
     if (fs::exists(path) == false) {
